@@ -22,6 +22,8 @@ variants$clean <- sapply(1:dim(variants)[1], clean)
 variants <- variants[!(variants$clean == FALSE),]
 variants <- variants[ , !(names(variants) %in% c("clean", "Flags"))]
 
+# TODO - label exon numbers (maybe get exons from somewhere?)
+
 # functions to get the ancestry of each variant in a nice format
 get_ancestors <- function(n){
   ancestors = ""
@@ -58,3 +60,12 @@ drops <- c("Allele.Count.African", "Allele.Number.African", "Homozygote.Count.Af
            "Allele.Count.South.Asian", "Allele.Number.South.Asian", "Homozygote.Count.South.Asian",
            "Allele.Count.Other", "Allele.Number.Other", "Homozygote.Count.Other")
 variants <- variants[ , !(names(variants) %in% drops)]
+
+# function to get gnomAD website for specific variant
+get_gnomAD_website <- function(n){
+  base_url <- "http://gnomad.broadinstitute.org/variant/"
+  variantID <- paste(variants$Chrom[n], variants$Position[n], variants$Reference[n], variants$Alternate[n], sep = "-")
+  return(paste(base_url,variantID,sep = ""))
+}
+
+variants$gnomAD.website <- sapply(1:dim(variants)[1], get_gnomAD_website)
