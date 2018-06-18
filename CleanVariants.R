@@ -20,7 +20,7 @@ clean <- function(n){
 
 variants$clean <- sapply(1:dim(variants)[1], clean)
 variants <- variants[!(variants$clean == FALSE),]
-variants <- variants[ , !(names(variants) == "clean")]
+variants <- variants[ , !(names(variants) %in% c("clean", "Flags"))]
 
 # functions to get the ancestry of each variant in a nice format
 get_ancestors <- function(n){
@@ -44,10 +44,17 @@ write_ancestors <- function(name, number){
   ancestor <- ""
   if(number != 0){
     ancestor <- paste(name," (", number, "); ", sep = "")
-    
   }
   return(ancestor)
 }
 
-
-
+variants$ancestors <- sapply(1:dim(variants)[1], get_ancestors)
+drops <- c("Allele.Count.African", "Allele.Number.African", "Homozygote.Count.African",
+           "Allele.Count.Ashkenazi.Jewish", "Allele.Number.Ashkenazi.Jewish", "Homozygote.Count.Ashkenazi.Jewish",
+           "Allele.Count.East.Asian", "Allele.Number.East.Asian", "Homozygote.Count.East.Asian",
+           "Allele.Count.European..Finnish.", "Allele.Number.European..Finnish.", "Homozygote.Count.European..Finnish.",
+           "Allele.Count.European..Non.Finnish.", "Allele.Number.European..Non.Finnish.", "Homozygote.Count.European..Non.Finnish.",
+           "Allele.Count.Latino", "Allele.Number.Latino", "Homozygote.Count.Latino",
+           "Allele.Count.South.Asian", "Allele.Number.South.Asian", "Homozygote.Count.South.Asian",
+           "Allele.Count.Other", "Allele.Number.Other", "Homozygote.Count.Other")
+variants <- variants[ , !(names(variants) %in% drops)]
