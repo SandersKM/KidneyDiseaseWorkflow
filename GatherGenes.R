@@ -1,4 +1,6 @@
 
+library(biomaRt)
+
 # Go to https://www.ncbi.nlm.nih.gov/gene/advanced to search for all
 # genes with a certain phenotype for humans. 
 # ex: (Kidney Disease[Disease/Phenotype]) AND Homo Sapiens[Organism] 
@@ -13,3 +15,11 @@ gene_file <- read.delim(file_name, header = TRUE, sep = "\t")
 drops <- c("tax_id", "Org_name", "CurrentID", "X", "Aliases", "Status")
 gene_file <- gene_file[ , !(names(gene_file) %in% drops)]
 
+# get ensemblIDs
+ensembl = useEnsembl(biomart="ensembl", dataset="hsapiens_gene_ensembl", GRCh=37)
+gene_file$EnsemblID <- sapply(1:dim(gene_file)[1], get_ensemblID)
+
+get_ensemblID <- function(n){
+  id <- getBM("ensembl_gene_id", filters="hgnc_symbol", values=gene_file$Symbol[n], mart=ensembl)
+  return(id)
+}
