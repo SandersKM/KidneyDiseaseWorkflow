@@ -23,6 +23,18 @@ get_ensemblID <- function(n){
   return(id)
 }
 gene_file$EnsemblID <- sapply(1:dim(gene_file)[1], get_ensemblID)
+# get start position of gene for hg19
+get_start_position <- function(n){
+  id <- getBM("start_position", filters="hgnc_symbol", values=gene_file$Symbol[n], mart=ensembl)
+  return(as.numeric(id))
+}
+gene_file$start_position_on_the_genomic_accession <- sapply(1:dim(gene_file)[1], get_start_position)
+# get end position of gene for hg19
+get_end_position <- function(n){
+  id <- getBM("end_position", filters="hgnc_symbol", values=gene_file$Symbol[n], mart=ensembl)
+  return(as.numeric(id))
+}
+gene_file$end_position_on_the_genomic_accession <- sapply(1:dim(gene_file)[1], get_end_position)
 # get percentage of GC content
 get_percentage_gc_content <- function(n){
   id <- getBM("percentage_gene_gc_content", filters="hgnc_symbol", values=gene_file$Symbol[n], mart=ensembl)
@@ -51,16 +63,6 @@ get_uniprotswissprot <- function(n){
   return(id)
 }
 gene_file$uniprotswissprot<- sapply(1:dim(gene_file)[1], get_uniprotswissprot)
-
-
-# WikiGene Description
-
-get_wikigene_description <- function(n){
-  id <- getBM("wikigene_description", filters="hgnc_symbol", values=gene_file$Symbol[n], mart=ensembl)
-  return(id)
-}
-gene_file$wikigene_description <- sapply(1:dim(gene_file)[1], get_wikigene_description)
-
 
 
 
