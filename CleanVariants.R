@@ -1,8 +1,13 @@
-
-library(GenomicScores)
-library(phastCons100way.UCSC.hg19)
-library(fitCons.UCSC.hg19)
+suppressPackageStartupMessages(library(AnnotationHub))
+suppressPackageStartupMessages(library(GenomicScores))
+suppressPackageStartupMessages(library(phastCons100way.UCSC.hg19))
+suppressPackageStartupMessages(library(fitCons.UCSC.hg19))
+suppressPackageStartupMessages(library(cadd.v1.3.hg19))
+suppressPackageStartupMessages(library(mcap.v1.0.hg19))
+suppressPackageStartupMessages(library(BSgenome.Hsapiens.UCSC.hg19))
 suppressPackageStartupMessages(library('GenomicFeatures'))
+
+
 samplefile <- system.file("extdata", "hg19_knownGene_sample.sqlite",
                           package="GenomicFeatures")
 txdb <- loadDb(samplefile)
@@ -90,25 +95,29 @@ variants$gnomAD.website <- sapply(1:dim(variants)[1], get_gnomAD_website)
 # Get Genomic Scores
 #################################
 
+gr <- GRanges(seqnames=gene.of.interest.ch,
+              IRanges(start=gene.of.interest.start:gene.of.interest.end, width=1))
+
 # used to get the row number of the scores
 get_position_offset <- function(n){
-  offset <- variants$Position[n] - gene.of.interest.start
+  offset <- variants$Position[n] - gene.of.interest.start + 1
   return(offset)
 }
+
+gene.of.interest.start <- gene_file$start_position_on_the_genomic_accession[gene.of.interest.row]
+gene.of.interest.end <- gene_file$end_position_on_the_genomic_accession[gene.of.interest.row]
+variants$distance.from.start <- sapply(1:dim(variants)[1], get_position_offset)
 
 # phastCons100way.UCSC.hg19 - phastCon scores are derived from the alignment of the human genome (hg19)
 # and 99 other vertabrate species
 
 gsco <- phastCons100way.UCSC.hg19
 citation(gsco) # the citation for the genomic scores
-gene.of.interest.start <- gene_file$start_position_on_the_genomic_accession[gene.of.interest.row]
-gene.of.interest.end <- gene_file$end_position_on_the_genomic_accession[gene.of.interest.row]
-phastCon.scores <- scores(gsco, GRanges(seqnames=gene.of.interest.ch, 
-                                        IRanges(start=gene.of.interest.start:gene.of.interest.end, width=1)))
+phastCon.scores <- scores(gsco, gr)
 
 # used to get the phastCon score for each variant in the table
 get_phastCon_score <- function(n){
-  return(phastCon.scores[get_position_offset(n)]$scores)
+  return(phastCon.scores[variants$distance.from.start[n]]$scores)
 }
 variants$phastCon.score <- sapply(1:dim(variants)[1], get_phastCon_score)
 
@@ -117,10 +126,49 @@ variants$phastCon.score <- sapply(1:dim(variants)[1], get_phastCon_score)
 
 fitcon <- fitCons.UCSC.hg19
 citation(fitcon) # the citation for the genomic scores
-fitCon.scores <- scores(fitcon, GRanges(seqnames=gene.of.interest.ch,
-                                        IRanges(start=gene.of.interest.start:gene.of.interest.end, width=1)))
+fitCon.scores <- scores(fitcon, gr)
 # used to get the fitCon score for each variant in the table
 get_fitCon_score <- function(n){
-  return(fitCon.scores[get_position_offset(n)]$scores)
+  return(fitCon.scores[variants$distance.from.start[n]]$scores)
 }
 variants$fitCon.score <- sapply(1:dim(variants)[1], get_fitCon_score)
+
+
+# cadd.v1.3.hg19 - fitCons scores measure the fitness consequences of function annotation for the 
+# human genome (hg19)
+
+cadd <- getGScores("cadd.v1.3.hg19")
+citation(cadd) # the citation for the genomic scores
+cadd.scores <- scores(cadd, gr)
+# used to get the cadd score for each variant in the table
+get_cadd_score <- function(n){
+  return(cadd.scores[variants$distance.from.start[n]])
+}
+variants$cadd.score <- sapply(1:dim(variants)[1], get_cadd_score)
+
+
+# ah = AnnotationHub()
+# ah <- subset(ah, species == "Homo sapiens")
+# ah
+# grch37 <- query(ah, "GRCh37", "hg19")
+# grch37$genome
+# display(grch37)
+
+
+
+
+# get mcap scores
+mcap <- getGScores("mcap.v1.0.hg19")
+citation(mcap) # the citation for the genomic scores
+# used to get the mcap score for each variant in the table
+get_mcap_score <- function(n){
+  if(variants$Annotation[n] != "missense"){
+    return("NA")
+  } 
+  return(scores(mcap,GRanges(seqnames=gene.of.interest.ch,IRanges(
+    start=variants$Position[n]:variants$Position[n], width=1)), ref=as.character(variants$Reference[n]),
+    alt=as.character(variants$Alternate[n]))$scores)
+}
+variants$mcap.score <- sapply(1:dim(variants)[1], get_mcap_score)
+
+
