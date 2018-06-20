@@ -1,7 +1,17 @@
 
 library(GenomicScores)
 library(phastCons100way.UCSC.hg19)
+library(fitCons.UCSC.hg19)
+suppressPackageStartupMessages(library('GenomicFeatures'))
+samplefile <- system.file("extdata", "hg19_knownGene_sample.sqlite",
+                          package="GenomicFeatures")
+txdb <- loadDb(samplefile)
+gene.of.interest.ch <- paste("chr",gene_file$chromosome[gene.of.interest.row],sep = "")
+seqlevels(txdb) <- gene.of.interest.ch
+# to reset seqlevel use seqlevels(txdb) <- seqlevels0(txdb)
+#TODO - figure out the exon thing :-/
 
+# Change the symbol to correspond to the gene of interest
 gene.of.interest.symbol <- "MUC1"
 gene.of.interest.row <- which(gene_file$Symbol == "MUC1")
 
@@ -80,6 +90,12 @@ variants$gnomAD.website <- sapply(1:dim(variants)[1], get_gnomAD_website)
 # Get Genomic Scores
 #################################
 
+# used to get the row number of the scores
+get_position_offset <- function(n){
+  offset <- variants$Position[n] - gene.of.interest.start
+  return(offset)
+}
+
 # phastCons100way.UCSC.hg19 - phastCon scores are derived from the alignment of the human genome (hg19)
 # and 99 other vertabrate species
 
@@ -87,20 +103,24 @@ gsco <- phastCons100way.UCSC.hg19
 citation(gsco) # the citation for the genomic scores
 gene.of.interest.start <- gene_file$start_position_on_the_genomic_accession[gene.of.interest.row]
 gene.of.interest.end <- gene_file$end_position_on_the_genomic_accession[gene.of.interest.row]
-phastCon.scores <- scores(gsco, GRanges(seqnames=paste("chr",gene_file$chromosome[gene.of.interest.row],sep = ""), 
+phastCon.scores <- scores(gsco, GRanges(seqnames=gene.of.interest.ch, 
                                         IRanges(start=gene.of.interest.start:gene.of.interest.end, width=1)))
-# used to get the row number in phastCon.scores
-get_position_offset <- function(n){
-  offset <- variants$Position[n] - gene.of.interest.start
-  return(offset)
-}
+
 # used to get the phastCon score for each variant in the table
 get_phastCon_score <- function(n){
   return(phastCon.scores[get_position_offset(n)]$scores)
 }
 variants$phastCon.score <- sapply(1:dim(variants)[1], get_phastCon_score)
 
-# fitcons.UCSC.hg19 - fitCons scores measure the fitness consequences of function annotation for the 
+# fitCons.UCSC.hg19 - fitCons scores measure the fitness consequences of function annotation for the 
 # human genome (hg19)
 
-
+fitcon <- fitCons.UCSC.hg19
+citation(fitcon) # the citation for the genomic scores
+fitCon.scores <- scores(fitcon, GRanges(seqnames=gene.of.interest.ch,
+                                        IRanges(start=gene.of.interest.start:gene.of.interest.end, width=1)))
+# used to get the fitCon score for each variant in the table
+get_fitCon_score <- function(n){
+  return(fitCon.scores[get_position_offset(n)]$scores)
+}
+variants$fitCon.score <- sapply(1:dim(variants)[1], get_fitCon_score)
