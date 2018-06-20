@@ -2,11 +2,11 @@ suppressPackageStartupMessages(library(AnnotationHub))
 suppressPackageStartupMessages(library(GenomicScores))
 suppressPackageStartupMessages(library(phastCons100way.UCSC.hg19))
 suppressPackageStartupMessages(library(fitCons.UCSC.hg19))
-suppressPackageStartupMessages(library(cadd.v1.3.hg19))
-suppressPackageStartupMessages(library(mcap.v1.0.hg19))
 suppressPackageStartupMessages(library(BSgenome.Hsapiens.UCSC.hg19))
-suppressPackageStartupMessages(library('GenomicFeatures'))
-
+suppressPackageStartupMessages(library(GenomicFeatures))
+suppressPackageStartupMessages(library(MafDb.gnomAD.r2.0.1.hs37d5))
+suppressPackageStartupMessages(library(MafDb.gnomADex.r2.0.1.hs37d5))
+suppressPackageStartupMessages(library(PolyPhen.Hsapiens.dbSNP131))
 
 samplefile <- system.file("extdata", "hg19_knownGene_sample.sqlite",
                           package="GenomicFeatures")
@@ -176,3 +176,7 @@ get_mcap_score <- function(n){
 variants$mcap.score <- sapply(1:dim(variants)[1], get_mcap_score)
 
 
+#PolyPhen database
+polyphen <- PolyPhen.Hsapiens.dbSNP131
+
+? PolyPhenDbColumns
