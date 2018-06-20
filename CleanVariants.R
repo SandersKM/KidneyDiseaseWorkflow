@@ -1,4 +1,10 @@
 
+library(GenomicScores)
+library(phastCons100way.UCSC.hg19)
+
+gene.of.interest.symbol <- "MUC1"
+gene.of.interest.row <- which(gene_file$Symbol == "MUC1")
+
 # download the variant CSV from the gnomAD browser for the 
 # gene of interest. Write the path file below
 all_variants_path <- "/Users/ksanders/Downloads/MUC1_genes_all.csv"
@@ -69,3 +75,32 @@ get_gnomAD_website <- function(n){
 }
 
 variants$gnomAD.website <- sapply(1:dim(variants)[1], get_gnomAD_website)
+
+#################################
+# Get Genomic Scores
+#################################
+
+# phastCons100way.UCSC.hg19 - phastCon scores are derived from the alignment of the human genome (hg19)
+# and 99 other vertabrate species
+
+gsco <- phastCons100way.UCSC.hg19
+citation(gsco) # the citation for the genomic scores
+gene.of.interest.start <- gene_file$start_position_on_the_genomic_accession[gene.of.interest.row]
+gene.of.interest.end <- gene_file$end_position_on_the_genomic_accession[gene.of.interest.row]
+phastCon.scores <- scores(gsco, GRanges(seqnames=paste("chr",gene_file$chromosome[gene.of.interest.row],sep = ""), 
+                                        IRanges(start=gene.of.interest.start:gene.of.interest.end, width=1)))
+# used to get the row number in phastCon.scores
+get_position_offset <- function(n){
+  offset <- variants$Position[n] - gene.of.interest.start
+  return(offset)
+}
+# used to get the phastCon score for each variant in the table
+get_phastCon_score <- function(n){
+  return(phastCon.scores[get_position_offset(n)]$scores)
+}
+variants$phastCon.score <- sapply(1:dim(variants)[1], get_phastCon_score)
+
+# fitcons.UCSC.hg19 - fitCons scores measure the fitness consequences of function annotation for the 
+# human genome (hg19)
+
+
