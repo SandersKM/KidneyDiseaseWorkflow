@@ -136,13 +136,17 @@ variants$fitCon.score <- sapply(1:dim(variants)[1], get_fitCon_score)
 
 # cadd.v1.3.hg19 - fitCons scores measure the fitness consequences of function annotation for the 
 # human genome (hg19)
-
+# These scores are rounded to provide faster lookup
 cadd <- getGScores("cadd.v1.3.hg19")
 citation(cadd) # the citation for the genomic scores
-cadd.scores <- scores(cadd, gr)
 # used to get the cadd score for each variant in the table
 get_cadd_score <- function(n){
-  return(cadd.scores[variants$distance.from.start[n]])
+  if(variants$Annotation[n] != "missense"){
+    return("NA")
+  } 
+  return(scores(cadd,GRanges(seqnames=gene.of.interest.ch,IRanges(
+    start=variants$Position[n]:variants$Position[n], width=1)), ref=as.character(variants$Reference[n]),
+    alt=as.character(variants$Alternate[n]))$scores)
 }
 variants$cadd.score <- sapply(1:dim(variants)[1], get_cadd_score)
 
