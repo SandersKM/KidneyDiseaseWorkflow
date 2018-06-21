@@ -65,6 +65,12 @@ gene_file$uniprotswissprot<- sapply(1:dim(gene_file)[1], get_uniprotswissprot)
 
 
 
+# Webscraping for inheritance and disease???
+gtr.gene.page <- read_html(paste("https://www.ncbi.nlm.nih.gov/gtr/genes/", gene_file$GeneID[3], "/", sep = ""))
+
+gtr.disease.url <- html_nodes(gtr.gene.page, "td a")[1] %>% html_attr("href")
+gtr.disease.page <- read_html(paste("https://www.ncbi.nlm.nih.gov", gtr.disease.url, sep = ""))
+gtr.disease.inheritance <- html_nodes(gtr.disease.page, "dd a")[1] %>% html_text()
 
 # # get go ID
 # get_go_id <- function(n){
