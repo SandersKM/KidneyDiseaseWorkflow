@@ -1,5 +1,7 @@
 
 library(biomaRt)
+library(gwascat)
+data(ebicat37)
 
 # Go to https://www.ncbi.nlm.nih.gov/gene/advanced to search for all
 # genes with a certain phenotype for humans. 
@@ -41,20 +43,17 @@ get_percentage_gc_content <- function(n){
   return(id)
 }
 gene_file$percentage_gc_content <- sapply(1:dim(gene_file)[1], get_percentage_gc_content)
+
 # get phenotype description
 get_phenotype_description <- function(n){
   id <- getBM("phenotype_description", filters="hgnc_symbol", values=gene_file$Symbol[n], mart=ensembl)
+  if(length(id) == 0){return("NA")}
   return(id)
 }
 gene_file$phenotype_description <- sapply(1:dim(gene_file)[1], get_phenotype_description)
+gene_file$phenotype_description <- sapply(gene_file$phenotype_description, function(x) {paste(x, collapse = "; ")})
 
-# MIM disease description
 
-get_MIM_disease_description <- function(n){
-  id <- getBM("mim_morbid_description", filters="hgnc_symbol", values=gene_file$Symbol[n], mart=ensembl)
-  return(id)
-}
-gene_file$MIM_disease<- sapply(1:dim(gene_file)[1], get_MIM_disease_description)
 
 # UniProt/swissprot
 
@@ -98,3 +97,5 @@ gene_file$uniprotswissprot<- sapply(1:dim(gene_file)[1], get_uniprotswissprot)
 #   return(id)
 # }
 # gene_file$goslim_goa_description <- sapply(1:dim(gene_file)[1], get_goslim_goa_description)
+
+gwasgene <- subsetByTraits(ebicat37, tr="Chronic kidney disease"  )
