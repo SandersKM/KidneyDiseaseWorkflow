@@ -70,6 +70,9 @@ gtr.gene.page <- read_html(paste("https://www.ncbi.nlm.nih.gov/gtr/genes/", gene
 
 gtr.disease.url <- html_nodes(gtr.gene.page, "td a")[1] %>% html_attr("href")
 gtr.disease.page <- read_html(paste("https://www.ncbi.nlm.nih.gov", gtr.disease.url, sep = ""))
+gtr.disease.name <- gtr.disease.page %>% html_node("h1") %>% html_text()
+gtr.disease.inheritance <- gtr.disease.page %>% html_node("div.grid div.col div.wrap div.page div.container div#maincontent 
++ div.col1 div#gtr_page_cont div#gtr_maincontent div.rprt div.page_header dl dl dd a") %>% html_text()
 gtr.disease.inheritance <- html_nodes(gtr.disease.page, "dd a")[1] %>% html_text()
 
 # # get go ID
