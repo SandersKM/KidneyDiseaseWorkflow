@@ -175,8 +175,25 @@ get_mcap_score <- function(n){
 }
 variants$mcap.score <- sapply(1:dim(variants)[1], get_mcap_score)
 
+# get allele frequencies from gnomAD
+gnomAD.gen <- MafDb.gnomAD.r2.0.1.hs37d5
+gnomAD.ex <- MafDb.gnomADex.r2.0.1.hs37d5
+
+get_gnomAD.ex_AF <- function(n){
+  return(mafByOverlaps(gnomAD.ex,paste(variants$Chrom[n],
+                                       variants$Position[n],sep = ":"))$AF)
+}
+
+get_gnomAD.gen_AF <- function(n){
+  return(mafByOverlaps(gnomAD.gen,paste(variants$Chrom[n],
+                                       variants$Position[n],sep = ":"))$AF)
+}
+
+variants$gnomAD.ex.AF <- sapply(1:dim(variants)[1], get_gnomAD.ex_AF)
+variants$gnomAD.gen.AF <- sapply(1:dim(variants)[1], get_gnomAD.gen_AF)
+
 
 #PolyPhen database
-polyphen <- PolyPhen.Hsapiens.dbSNP131
-
-? PolyPhenDbColumns
+#polyphen <- PolyPhen.Hsapiens.dbSNP131
+# I haven't been able to figure this out :(
+# https://bioconductor.org/packages/release/data/annotation/manuals/PolyPhen.Hsapiens.dbSNP131/man/PolyPhen.Hsapiens.dbSNP131.pdf
