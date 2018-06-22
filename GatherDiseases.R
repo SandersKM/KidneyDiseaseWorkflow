@@ -2,6 +2,11 @@ library(rvest)
 library(httr)
 library(rentrez)
 
+########################################
+# If you have an API key for NCBI
+# talk about the api key setup and
+# actually do it yourself ;)
+#######################################
 
 
 
@@ -28,14 +33,14 @@ get_genes <- function(n){
 }
 disease_file$genes <- sapply(1:dim(disease_file)[1], get_genes)
 make_string_list <- function(n){
-  print(n)
   if(length(disease_file$genes[[n]]) == 0){
     return("NULL")
   }
   return(paste(disease_file$genes[[n]]$medgen_gene_diseases, collapse="; "))
 }
+# take out diseases without associated genes
 disease_file$genes <- sapply(1:dim(disease_file)[1], make_string_list)
-
+disease_file <- disease_file[!disease_file$genes == "NULL",]
 
 
 # Webscraping for inheritance and disease???
