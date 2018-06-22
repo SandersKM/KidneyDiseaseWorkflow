@@ -2,12 +2,48 @@
 library(biomaRt)
 library(gwascat)
 data(ebicat37)
+library(rentrez)
 
-# Go to https://www.ncbi.nlm.nih.gov/gene/advanced to search for all
-# genes with a certain phenotype for humans. 
-# ex: (Kidney Disease[Disease/Phenotype]) AND Homo Sapiens[Organism] 
-# Click "Send to" in the top right corner, select "File" with 
-# Format = "Tabular (text)". Click "Create File".
+gene_file <- data.frame(geneID = integer(dim(disease_file)[1]), phenotype = character(dim(disease_file)[1]), 
+                        stringsAsFactors = FALSE)
+index <- 1
+for(i in 1:dim(disease_file)[1]){
+  spl <- strsplit(disease_file$genes[i], split = "; ")
+  firstid <- as.integer(spl[[1]][1])
+  if(firstid %in% gene_file$geneID){
+    idrow <- which(disease_file$genes == firstid, arr.ind = TRUE)
+    gene_file[idrow, 2] = paste(gene_file[idrow, 2],disease_file$title[i], sep = "; ")
+  }
+  else{
+    gene_file[index, 1] = firstid
+    gene_file[index, 2] = as.character(disease_file$title[i])
+    index <- index + 1
+  } 
+  if(length(spl[[1]]) > 1){
+    for(j in 2:length(spl[[1]])){
+      if(index < i){
+        gene_file[index, 1] = as.integer(spl[[1]][j])
+        gene_file[index, 2] =as.character(disease_file$title[i])
+        index <- index + 1
+      }
+      else{
+        tempdf <- data.frame(geneID = as.integer(spl[[1]][j]), phenotype = disease_file$title[i])
+        gene_file <- rbind(gene_file, tempdf)
+      }
+    }
+  }
+}
+gene_file <- gene_file[!gene_file$geneID == 0,]
+rm(tempdf)
+
+
+
+
+
+
+
+
+
 
 # Path to the downloaded file (include file name)
 file_name <- "/Users/ksanders/Downloads/Kidney_Genes.txt"
