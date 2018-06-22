@@ -22,6 +22,21 @@ disease_file$conceptid <- extract_from_esummary(disease_file$summary, "conceptid
 disease_file$title <- extract_from_esummary(disease_file$summary, "title")
 disease_file$definition <- sapply(extract_from_esummary(disease_file$summary, "definition"), '[', 1)
 disease_file <- disease_file[ , !(names(disease_file) %in% c("summary"))]
+get_genes <- function(n){
+  links <- entrez_link(dbfrom="medgen", id = disease_file$id[n], db='gene')$links
+  return(links)
+}
+disease_file$genes <- sapply(1:dim(disease_file)[1], get_genes)
+make_string_list <- function(n){
+  print(n)
+  if(length(disease_file$genes[[n]]) == 0){
+    return("NULL")
+  }
+  return(paste(disease_file$genes[[n]]$medgen_gene_diseases, collapse="; "))
+}
+disease_file$genes <- sapply(1:dim(disease_file)[1], make_string_list)
+
+
 
 # Webscraping for inheritance and disease???
 # gtr.gene.page <- read_html(paste("https://www.ncbi.nlm.nih.gov/gtr/genes/", gene_file$GeneID[3], "/", sep = ""))
