@@ -36,22 +36,16 @@ for(i in 1:dim(disease_file)[1]){
 gene_file <- gene_file[!gene_file$geneID == 0,]
 rm(tempdf)
 
+gene_file$summary <- entrez_summary(db="gene", id =gene_file$geneID)
+gene_file$name <- extract_from_esummary(gene_file$summary, "name")
+gene_file$description <- extract_from_esummary(gene_file$summary, "description")
+gene_file$chromosome <- extract_from_esummary(gene_file$summary, "chromosome")
+gene_file$map.location <- extract_from_esummary(gene_file$summary, "maplocation")
+gene_file$mim <- extract_from_esummary(gene_file$summary, "mim")
+gene_file$exon.count <- lapply(1:dim(gene_file)[1], function(x){extract_from_esummary(gene_file$summary,
+                                                                          "genomicinfo")[[x]]$exoncount})
+gene_file$summary <- extract_from_esummary(gene_file$summary, "summary")
 
-
-
-
-
-
-
-
-
-# Path to the downloaded file (include file name)
-file_name <- "/Users/ksanders/Downloads/Kidney_Genes.txt"
-gene_file <- read.delim(file_name, header = TRUE, sep = "\t")
-
-# drops unneeded/repetitive columns
-drops <- c("tax_id", "Org_name", "CurrentID", "X", "Aliases", "Status")
-gene_file <- gene_file[ , !(names(gene_file) %in% drops)]
 
 # set up biomart
 ensembl = useEnsembl(biomart="ensembl", dataset="hsapiens_gene_ensembl", GRCh=37)
