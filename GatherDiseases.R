@@ -41,7 +41,7 @@ make_string_list <- function(n){
 # take out diseases without associated genes
 disease_file$genes <- sapply(1:dim(disease_file)[1], make_string_list)
 disease_file <- disease_file[!disease_file$genes == "NULL",]
-
+disease_file <- disease_file[ , !(names(disease_file) %in% c("summary"))]
 
 # Webscraping for inheritance and disease???
 # gtr.gene.page <- read_html(paste("https://www.ncbi.nlm.nih.gov/gtr/genes/", gene_file$GeneID[3], "/", sep = ""))
