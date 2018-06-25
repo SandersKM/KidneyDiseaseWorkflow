@@ -55,7 +55,7 @@ get_ensemblID <- function(n){
   id <- getBM("ensembl_gene_id", filters="hgnc_symbol", values=gene_file$name[n], mart=ensembl)
   return(id)
 }
-gene_file$EnsemblID <- as.character(sapply(1:dim(gene_file)[1], get_ensemblID))
+gene_file$EnsemblID <- sapply(1:dim(gene_file)[1], get_ensemblID)
 # get start position of gene for hg19
 get_start_position <- function(n){
   id <- getBM("start_position", filters="hgnc_symbol", values=gene_file$name[n], mart=ensembl)
@@ -79,13 +79,50 @@ gene_file <- gene_file[c("name", "description", "phenotype", "summary", "geneID"
                  "map.location", "chromosome", "start_position", "end_position", "exon.count", "percentage_gc_content")]
 
 # Web scrapping on Human Protein Atlas for protein/rna expression data
-hpa.url <- paste("https://www.proteinatlas.org/",gene_file$EnsemblID[1],"/tissue/kidney", sep = "")
-hpa.page <- read_html(hpa.url)
-hpa.rna.expression <- hpa.page %>% html_nodes("body table.main_table tr div.menu_margin 
-                                                  table.border.dark.round table.noborder.nowrap tr")
-hpa.rna.hpa.tpm <- as.list(hpa.rna.expression[1] %>% html_nodes("td") %>% html_text())[[2]]
-hpa.rna.gtex.rpkm <-as.list(hpa.rna.expression[2] %>% html_nodes("td") %>% html_text())[[2]]
-hpa.rna.fantom5.tagspermillion <- as.list(hpa.rna.expression[3] %>% html_nodes("td") %>% html_text())[[2]]
+
+gene_file$hpa.url <- sapply(gene_file$EnsemblID, function(x){
+  if(!is.logical(x)){
+    # if there is > 1 EnsemblID, I am just using the first. 
+    if(length(x) > 1){
+      paste("https://www.proteinatlas.org/",x[[1]],"/tissue/kidney", sep = "")
+    } 
+    else{
+      paste("https://www.proteinatlas.org/",x,"/tissue/kidney", sep = "")
+    }
+  }
+}) 
+
+gene_file$page <- sapply(gene_file$hpa.url, function(x){ 
+  print(x)
+  if(!is.null(x)){
+    tryCatch({read_html(x)},
+             error = function(e){
+               return(NULL)
+             })
+  }
+})
+
+gene_file$hpa.rna.expression <- sapply(gene_file$page, function(x){
+  if(!is.null(x)){
+    x %>% html_nodes("body table.main_table tr div.menu_margin 
+                     table.border.dark.round table.noborder.nowrap tr"
+                     )}})
+
+gene_file$hpa.rna.hpa.tpm <- sapply(gene_file$hpa.rna.expression, function(x){
+  if(!is.null(x)){
+    as.list(x[1] %>% html_nodes("td") %>% html_text())[[2]]}})
+gene_file$hpa.rna.gtex.rpkm <- sapply(gene_file$hpa.rna.expression, function(x){
+  if(!is.null(x)){
+    tryCatch({as.list(x[2] %>% html_nodes("td") %>% html_text())[[2]]},
+             error = function(e){
+               return(NULL)
+             })}})
+gene_file$hpa.rna.fantom5.tagspermillion <- sapply(gene_file$hpa.rna.expression, function(x){
+  if(!is.null(x)){
+    tryCatch({as.list(x[3] %>% html_nodes("td") %>% html_text())[[2]]},
+             error = function(e){
+               return(NULL)
+             })}})
 
 hpa.protein.expression <- hpa.page %>% html_nodes("body table.main_table tr div.menu_margin table table.dark th.nopadd 
                                                   table.border.dark table.noborder.nowrap tr")
