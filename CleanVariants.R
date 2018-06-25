@@ -7,6 +7,7 @@ suppressPackageStartupMessages(library(GenomicFeatures))
 suppressPackageStartupMessages(library(MafDb.gnomAD.r2.0.1.hs37d5))
 suppressPackageStartupMessages(library(MafDb.gnomADex.r2.0.1.hs37d5))
 suppressPackageStartupMessages(library(PolyPhen.Hsapiens.dbSNP131))
+library(RISmed)
 
 samplefile <- system.file("extdata", "hg19_knownGene_sample.sqlite",
                           package="GenomicFeatures")
