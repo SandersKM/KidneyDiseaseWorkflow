@@ -79,7 +79,6 @@ gene_file <- gene_file[c("name", "description", "phenotype", "summary", "geneID"
                  "map.location", "chromosome", "start_position", "end_position", "exon.count", "percentage_gc_content")]
 
 # Web scrapping on Human Protein Atlas for protein/rna expression data
-
 gene_file$hpa.url <- sapply(gene_file$EnsemblID, function(x){
   if(!is.logical(x)){
     # if there is > 1 EnsemblID, I am just using the first. 
@@ -124,10 +123,32 @@ gene_file$hpa.rna.fantom5.tagspermillion <- sapply(gene_file$hpa.rna.expression,
                return(NULL)
              })}})
 
-hpa.protein.expression <- hpa.page %>% html_nodes("body table.main_table tr div.menu_margin table table.dark th.nopadd 
-                                                  table.border.dark table.noborder.nowrap tr")
-hpa.protein.glomeruli <- as.list(hpa.protein.expression[1] %>% html_nodes("td") %>% html_text)[[2]]
-hpa.protein.tubules <- as.list(hpa.protein.expression[2] %>% html_nodes("td") %>% html_text)[[2]]
+gene_file$hpa.protein.expression <- sapply(gene_file$page, function(x){
+  if(!is.null(x)){
+    x %>% html_nodes("body table.main_table tr div.menu_margin 
+                     table table.dark th.nopadd table.border.dark table.noborder.nowrap tr")
+    }})
+
+gene_file$hpa.protein.glomeruli <- sapply(gene_file$hpa.protein.expression, function(x){
+  if(!is.null(x)){
+    tryCatch({as.list(x[1] %>% html_nodes("td") %>% html_text)[[2]]},
+             error = function(e){
+               return(NULL)
+             })}})
+gene_file$hpa.protein.glomeruli <- sapply(gene_file$hpa.protein.expression, function(x){
+  if(!is.null(x)){
+    tryCatch({as.list(x[1] %>% html_nodes("td") %>% html_text)[[2]]},
+             error = function(e){
+               return(NULL)
+             })}})
+gene_file$hpa.protein.tubules <- sapply(gene_file$hpa.protein.expression, function(x){
+  if(!is.null(x)){
+    tryCatch({as.list(x[2] %>% html_nodes("td") %>% html_text)[[2]]},
+             error = function(e){
+               return(NULL)
+             })}}) 
+gene_file <- gene_file[ , !(names(gene_file) %in% c("page", "hpa.rna.expression",
+                                                    "hpa.protein.expression"))]
 
 # UniProt/swissprot
 # get_uniprotswissprot <- function(n){
