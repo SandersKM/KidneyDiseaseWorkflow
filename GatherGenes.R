@@ -78,6 +78,19 @@ gene_file$percentage_gc_content <- sapply(1:dim(gene_file)[1], get_percentage_gc
 gene_file <- gene_file[c("name", "description", "phenotype", "summary", "geneID", "EnsemblID", "mim",
                  "map.location", "chromosome", "start_position", "end_position", "exon.count", "percentage_gc_content")]
 
+# Web scrapping on Human Protein Atlas for protein/rna expression data
+hpa.url <- paste("https://www.proteinatlas.org/",gene_file$EnsemblID[1],"/tissue/kidney", sep = "")
+hpa.page <- read_html(hpa.url)
+hpa.rna.expression <- hpa.page %>% html_nodes("body table.main_table tr div.menu_margin 
+                                                  table.border.dark.round table.noborder.nowrap tr")
+hpa.rna.hpa.tpm <- as.list(hpa.rna.expression[1] %>% html_nodes("td") %>% html_text())[[2]]
+hpa.rna.gtex.rpkm <-as.list(hpa.rna.expression[2] %>% html_nodes("td") %>% html_text())[[2]]
+hpa.rna.fantom5.tagspermillion <- as.list(hpa.rna.expression[3] %>% html_nodes("td") %>% html_text())[[2]]
+
+hpa.protein.expression <- hpa.page %>% html_nodes("body table.main_table tr div.menu_margin table table.dark th.nopadd 
+                                                  table.border.dark table.noborder.nowrap tr")
+hpa.protein.glomeruli <- as.list(hpa.protein.expression[1] %>% html_nodes("td") %>% html_text)[[2]]
+hpa.protein.tubules <- as.list(hpa.protein.expression[2] %>% html_nodes("td") %>% html_text)[[2]]
 
 # UniProt/swissprot
 # get_uniprotswissprot <- function(n){
