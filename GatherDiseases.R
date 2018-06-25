@@ -43,15 +43,32 @@ disease_file$genes <- sapply(1:dim(disease_file)[1], make_string_list)
 disease_file <- disease_file[!disease_file$genes == "NULL",]
 disease_file <- disease_file[ , !(names(disease_file) %in% c("summary"))]
 
+get_inheritance <- function(n){
+  def <- strsplit(tolower(n), split = " ")
+  if(length(def) > 0){
+    if("autosomal" %in% def[[1]]){
+      if("dominant" %in% def[[1]]){
+        return("AD")
+      }
+      if("recessive" %in% def[[1]]){
+        return("AR")
+      }
+      return("A")
+    }
+    if(("x"  %in% def[[1]]) || ("linked"  %in% def[[1]])|| ("x-linked"  %in% def[[1]])){
+      return("X")
+    }
+  }
+}
+disease_file$inheritance <- sapply(disease_file$definition, get_inheritance)
+
 # Webscraping for inheritance and disease???
-# gtr.gene.page <- read_html(paste("https://www.ncbi.nlm.nih.gov/gtr/genes/", gene_file$GeneID[3], "/", sep = ""))
-# 
-# gtr.disease.url <- html_nodes(gtr.gene.page, "td a")[1] %>% html_attr("href")
-# gtr.disease.page <- read_html(paste("https://www.ncbi.nlm.nih.gov", gtr.disease.url, sep = ""))
+
+# gtr.disease.page <- read_html(paste("https://www.ncbi.nlm.nih.gov/gtr/conditions/", disease_file$conceptid[2], sep = ""))
 # gtr.disease.name <- gtr.disease.page %>% html_node("h1") %>% html_text()
-# gtr.disease.inheritance <- gtr.disease.page %>% html_node("div.grid div.col div.wrap div.page div.container div#maincontent 
+# gtr.disease.inheritance <- gtr.disease.page %>% html_node("div.grid div.col div.wrap div.page div.container div#maincontent
 #                                                           div.col1 div#gtr_page_cont div#gtr_maincontent div.rprt div.page_header dl dl dd a") %>% html_text()
 # gtr.disease.inheritance <- html_nodes(gtr.disease.page, "dd a")[1] %>% html_text()
-# gtr.disease.summary.long <- gtr.disease.page %>% html_nodes("div.grid div.col div.wrap div.page div.container div#maincontent 
+# gtr.disease.summary.long <- gtr.disease.page %>% html_nodes("div.grid div.col div.wrap div.page div.container div#maincontent
 #                                                             div.col1 div#gtr_page_cont div#gtr_maincontent div.rprt div.rprt-section div.rprt-section-body") %>% html_text()
 # gtr.disease.summary <- gtr.disease.summary.long[1]
