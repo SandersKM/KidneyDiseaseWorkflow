@@ -150,6 +150,49 @@ gene_file$hpa.protein.tubules <- sapply(gene_file$hpa.protein.expression, functi
 gene_file <- gene_file[ , !(names(gene_file) %in% c("page", "hpa.rna.expression",
                                                     "hpa.protein.expression"))]
 
+# Web scrapping to get gene structure exons 
+# let me know if you also want UTRs
+gene_file$rcsb.url <- sapply(gene_file$name, function(x){
+  paste("http://www.rcsb.org/pdb/gene/",x,"?v=hg19", sep = "")
+}) 
+gene_file$rcsb.genestructure.txt <- sapply(gene_file$rcsb.url, function(x){ 
+  tryCatch({
+    read_html(x) %>% 
+      html_nodes("body div.container table.table.table-hover tr td") %>% 
+      html_text()
+  },
+           error = function(e){
+             return(NULL)})
+  })
+gene_file$exon <- sapply(1:dim(gene_file)[1], get_exons)
+
+get_exons <- function(n){
+  if(!(length(gene_file$exon.count[[n]]) == 0)){
+    txt <- gene_file$rcsb.genestructure.txt[n]
+    txt <- txt[[1]]
+    exons <- vector(mode = "list", length = as.numeric(gene_file$exon.count[[n]]))
+    i <- 1
+    e <- 1
+    while(i <= length(txt)){
+      if("Exon" %in% txt[i]){
+        exons[[e]] <- c(txt[i + 1], txt[i + 2])
+        i <- i + 3
+        e <- e + 1
+      }
+      else{
+        i <- i + 1
+      }
+    }
+    return(exons[!sapply(exons, is.null)])
+  }
+  else{return(NULL)}
+  
+}
+
+
+
+
+
 # UniProt/swissprot
 # get_uniprotswissprot <- function(n){
 #   id <- getBM("uniprotswissprot", filters="hgnc_symbol", values=gene_file$name[n], mart=ensembl)
