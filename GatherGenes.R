@@ -189,7 +189,13 @@ get_exons <- function(n){
   
 }
 
+gene_file <- gene_file[ , !(names(gene_file) %in% c("exon.count", "rcsb.genestructure.txt"))]
 
+# for some reason, not all of the exon counts match the number of exon regions retrieved?
+# this code is to make the two match...
+gene_file$exon.count <- sapply(1:length(gene_file$exon)[1], function(n){
+  if(!is.null(gene_file$exon[n])){
+  length(gene_file$exon[[n]])}})
 
 
 
