@@ -143,7 +143,7 @@ citation(cadd) # the citation for the genomic scores
 # used to get the cadd score for each variant in the table
 get_cadd_score <- function(n){
   if(variants$Annotation[n] != "missense"){
-    return("NA")
+    return(NA)
   } 
   return(scores(cadd,GRanges(seqnames=gene.of.interest.ch,IRanges(
     start=variants$Position[n]:variants$Position[n], width=1)), ref=as.character(variants$Reference[n]),
@@ -168,7 +168,7 @@ citation(mcap) # the citation for the genomic scores
 # used to get the mcap score for each variant in the table
 get_mcap_score <- function(n){
   if(variants$Annotation[n] != "missense"){
-    return("NA")
+    return(NA)
   } 
   return(scores(mcap,GRanges(seqnames=gene.of.interest.ch,IRanges(
     start=variants$Position[n]:variants$Position[n], width=1)), ref=as.character(variants$Reference[n]),
@@ -193,6 +193,11 @@ get_gnomAD.gen_AF <- function(n){
 variants$gnomAD.ex.AF <- sapply(1:dim(variants)[1], get_gnomAD.ex_AF)
 variants$gnomAD.gen.AF <- sapply(1:dim(variants)[1], get_gnomAD.gen_AF)
 
+# package.install("webshot")
+#library(webshot)
+# webshot::install_phantomjs()
+#url <- variants$gnomAD.website[1]
+#webshot(url)
 
 #PolyPhen database
 #polyphen <- PolyPhen.Hsapiens.dbSNP131

@@ -2,14 +2,6 @@ library(rvest)
 library(httr)
 library(rentrez)
 
-########################################
-# If you have an API key for NCBI
-# talk about the api key setup and
-# actually do it yourself ;)
-#######################################
-
-
-
 ##########################################
 # Put Disease/Phenotype of interest below
 ##########################################
