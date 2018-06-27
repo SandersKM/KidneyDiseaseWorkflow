@@ -3,6 +3,9 @@ library(biomaRt)
 library(gwascat)
 data(ebicat37)
 library(rentrez)
+# brew install v8-315
+# install.packages("V8")
+library(V8)
 
 gene_file <- data.frame(geneID = integer(dim(disease_file)[1]), phenotype = character(dim(disease_file)[1]), 
                         stringsAsFactors = FALSE)
@@ -78,7 +81,8 @@ gene_file$percentage_gc_content <- sapply(1:dim(gene_file)[1], get_percentage_gc
 gene_file <- gene_file[c("name", "description", "phenotype", "summary", "geneID", "EnsemblID", "mim",
                  "map.location", "chromosome", "start_position", "end_position", "exon.count", "percentage_gc_content")]
 
-# Web scrapping on Human Protein Atlas for protein/rna expression data
+# Web scrapping on Human Protein Atlas for protein/rna expression data in kidney
+# If you are not looking at kidney disease, this can be easily modified. 
 gene_file$hpa.url <- sapply(gene_file$EnsemblID, function(x){
   if(!is.logical(x)){
     # if there is > 1 EnsemblID, I am just using the first. 
@@ -197,7 +201,15 @@ gene_file$exon.count <- sapply(1:length(gene_file$exon)[1], function(n){
   if(!is.null(gene_file$exon[n])){
   length(gene_file$exon[[n]])}})
 
-
+get_gnomad_website_gene <- function(n){
+  if(class(gene_file$EnsemblID[[n]]) != "logical"){
+    base_url <- "http://gnomad.broadinstitute.org/gene/"
+    variantID <- gene_file$EnsemblID[n]
+    return(paste(base_url,variantID,sep = ""))
+  }
+  return(NULL)
+}
+gene_file$gnomAD.website <- sapply(1:dim(gene_file)[1], get_gnomad_website_gene)
 
 # UniProt/swissprot
 # get_uniprotswissprot <- function(n){
