@@ -96,6 +96,7 @@ drops <- c("Allele.Count.African", "Allele.Number.African", "Homozygote.Count.Af
            "Allele.Count.Other", "Allele.Number.Other", "Homozygote.Count.Other")
 variants <- variants[ , !(names(variants) %in% drops)]
 
+
 # function to get gnomAD website for specific variant
 get_gnomAD_website <- function(n){
   base_url <- "http://gnomad.broadinstitute.org/variant/"
@@ -229,9 +230,93 @@ score.cutoff.phastCon <- 0.55
 # mcap minimum score:
 score.cutoff.mcap <- 0.025 
 
-
 # gnomAD maximum AF:
 score.cutoff.AFgnomAD <- 0.01
+
+# functions to return the number of scores that pass/fail/NA
+
+passes_cadd <- function(n){
+  if(is.na(variants$cadd.score[n])){
+    return(NA)
+  }
+  else if(variants$cadd.score[n] >= score.cutoff.cadd){
+    return(1)
+  }
+  else{
+    return(0)
+  }
+}
+
+passes_fitCons <- function(n){
+  if(is.na(variants$fitCon.score[n])){
+    return(NA)
+  }
+  else if(variants$fitCon.score[n] >= score.cutoff.fitCon){
+    return(1)
+  }
+}
+
+passes_phastCons <- function(n){
+  if(is.na(variants$phastCon.score[n])){
+    return(NA)
+  }
+  else if(variants$phastCon.score[n] >= score.cutoff.phastCon){
+    return(1)
+  }
+  else{
+    return(0)
+  }
+}
+
+passes_mcap <- function(n){
+  if(is.na(variants$mcap.score[n])){
+    return(NA)
+  }
+  else if(variants$mcap.score[n] >= score.cutoff.mcap){
+    return(1)
+  }
+  else{
+    return(0)
+  }
+}
+
+passes_gnomAD <- function(n){
+  if(is.na(variants$Allele.Frequency[n])){
+    return(NA)
+  }
+  else if(variants$Allele.Frequency[n] <= score.cutoff.AFgnomAD){
+    return(1)
+  }
+  else{
+    return(0)
+  }
+}
+
+overall_score <- function(n){
+  pass <- 0
+  fail <- 0
+  n.a <- 0
+  passed_list <- c(passes_gnomAD(n), passes_mcap(n), passes_phastCons(n), passes_fitCons(n), passes_cadd(n))
+  for(i in passed_list){
+    if(is.na(i)){
+      n.a <- n.a + 1
+    }
+    else{
+      pass <- pass + i
+    }
+  }
+  fail <- length(passed_list) - pass - n.a
+  return(c(pass, fail, n.a))
+}
+
+overall_score_lists <- lapply(1:dim(variants)[1], overall_score)
+variants$num.pass <- sapply(1:dim(variants)[1], function(n){overall_score_lists[[n]][1]})
+variants$num.fail <- sapply(1:dim(variants)[1], function(n){overall_score_lists[[n]][2]})
+variants$num.na <- sapply(1:dim(variants)[1], function(n){overall_score_lists[[n]][3]})
+
+# sort variants by the number of scores that passed cutoffs
+variants <- variants[order(-variants$num.pass),]
+
 
 # package.install("webshot")
 #library(webshot)
