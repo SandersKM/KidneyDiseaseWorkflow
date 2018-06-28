@@ -1,3 +1,10 @@
+# Uncomment and run the following lines.
+# It will take a few minutes, so be patient
+# source("https://bioconductor.org/biocLite.R")
+# biocLite("SIFT.Hsapiens.dbSNP137")
+# biocLite("phastCons100way.UCSC.hg19")
+
+
 suppressPackageStartupMessages(library(AnnotationHub))
 suppressPackageStartupMessages(library(GenomicScores))
 suppressPackageStartupMessages(library(phastCons100way.UCSC.hg19))
@@ -7,19 +14,25 @@ suppressPackageStartupMessages(library(GenomicFeatures))
 suppressPackageStartupMessages(library(MafDb.gnomAD.r2.0.1.hs37d5))
 suppressPackageStartupMessages(library(MafDb.gnomADex.r2.0.1.hs37d5))
 suppressPackageStartupMessages(library(PolyPhen.Hsapiens.dbSNP131))
+library(SIFT.Hsapiens.dbSNP137)
 library(RISmed)
+
 
 samplefile <- system.file("extdata", "hg19_knownGene_sample.sqlite",
                           package="GenomicFeatures")
+
+# Change the symbol to correspond to the gene of interest
+gene.of.interest.symbol <- "MUC1"
+gene.of.interest.row <- which(gene_file$name == "MUC1")
+
+
 txdb <- loadDb(samplefile)
 gene.of.interest.ch <- paste("chr",gene_file$chromosome[gene.of.interest.row],sep = "")
 seqlevels(txdb) <- gene.of.interest.ch
 # to reset seqlevel use seqlevels(txdb) <- seqlevels0(txdb)
 #TODO - figure out the exon thing :-/
 
-# Change the symbol to correspond to the gene of interest
-gene.of.interest.symbol <- "MUC1"
-gene.of.interest.row <- which(gene_file$Symbol == "MUC1")
+
 
 # download the variant CSV from the gnomAD browser for the 
 # gene of interest. Write the path file below
@@ -92,6 +105,13 @@ get_gnomAD_website <- function(n){
 
 variants$gnomAD.website <- sapply(1:dim(variants)[1], get_gnomAD_website)
 
+
+#snp.db <- useMart(host="www.ensembl.org",biomart = "ENSEMBL_MART_SNP", dataset="hsapiens_snp")
+#snp.db.ids <- getBM(attributes = c("p_value", "allele", "polyphen_score", "polyphen_prediction", "validated"), 
+#                    filters =  c("snp_filter"), 
+#                    values = list(variants$RSID[2]),
+#                    mart = snp.db)
+
 #################################
 # Get Genomic Scores
 #################################
@@ -134,6 +154,13 @@ get_fitCon_score <- function(n){
 }
 variants$fitCon.score <- sapply(1:dim(variants)[1], get_fitCon_score)
 
+# SIFT
+sift <- SIFT.Hsapiens.dbSNP137
+metadata(sift)
+sift.keys <- keys(sift)
+sift.scores <- scores(sift, gr)
+select(sift, sift.keys[10])
+
 
 # cadd.v1.3.hg19 - fitCons scores measure the fitness consequences of function annotation for the 
 # human genome (hg19)
@@ -150,16 +177,6 @@ get_cadd_score <- function(n){
     alt=as.character(variants$Alternate[n]))$scores)
 }
 variants$cadd.score <- sapply(1:dim(variants)[1], get_cadd_score)
-
-
-# ah = AnnotationHub()
-# ah <- subset(ah, species == "Homo sapiens")
-# ah
-# grch37 <- query(ah, "GRCh37", "hg19")
-# grch37$genome
-# display(grch37)
-
-
 
 
 # get mcap scores
@@ -193,6 +210,29 @@ get_gnomAD.gen_AF <- function(n){
 variants$gnomAD.ex.AF <- sapply(1:dim(variants)[1], get_gnomAD.ex_AF)
 variants$gnomAD.gen.AF <- sapply(1:dim(variants)[1], get_gnomAD.gen_AF)
 
+####################################################################
+# You can change the score cutoffs below to match your research needs
+####################################################################
+
+# http://cadd.gs.washington.edu/info
+# CADD minimum score:
+score.cutoff.cadd <- 20
+
+# https://link.springer.com/content/pdf/10.1186%2Fs40246-017-0104-8.pdf
+# fitCons minimum score:
+score.cutoff.fitCon <- 0.4
+
+# phastCons minimum score:
+score.cutoff.phastCon <- 0.55
+
+# http://bejerano.stanford.edu/mcap/
+# mcap minimum score:
+score.cutoff.mcap <- 0.025 
+
+
+# gnomAD maximum AF:
+score.cutoff.AFgnomAD <- 0.01
+
 # package.install("webshot")
 #library(webshot)
 # webshot::install_phantomjs()
@@ -203,3 +243,11 @@ variants$gnomAD.gen.AF <- sapply(1:dim(variants)[1], get_gnomAD.gen_AF)
 #polyphen <- PolyPhen.Hsapiens.dbSNP131
 # I haven't been able to figure this out :(
 # https://bioconductor.org/packages/release/data/annotation/manuals/PolyPhen.Hsapiens.dbSNP131/man/PolyPhen.Hsapiens.dbSNP131.pdf
+
+
+# ah = AnnotationHub()
+# ah <- subset(ah, species == "Homo sapiens")
+# ah
+# grch37 <- query(ah, "GRCh37", "hg19")
+# grch37$genome
+# display(grch37)
