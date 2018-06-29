@@ -194,12 +194,13 @@ get_exons <- function(n){
   if(!(length(gene_file$exon.count[[n]]) == 0)){
     txt <- gene_file$rcsb.genestructure.txt[n]
     txt <- txt[[1]]
-    exons <- vector(mode = "list", length = as.numeric(gene_file$exon.count[[n]]))
+    exons <- ""
     i <- 1
     e <- 1
     while(i <= length(txt)){
       if("Exon" %in% txt[i]){
-        exons[[e]] <- c(txt[i + 1], txt[i + 2])
+        exons <- paste(exons, e, ":", gsub(",", "", txt[i + 1], fixed = TRUE), 
+                       "-",gsub(",", "", txt[i + 2], fixed = TRUE), "; ", sep = "")
         i <- i + 3
         e <- e + 1
       }
@@ -209,11 +210,10 @@ get_exons <- function(n){
     }
     return(exons[!sapply(exons, is.null)])
   }
-  else{return(NULL)}
+  else{return("")}
   
 }
 gene_file$exon <- sapply(1:dim(gene_file)[1], get_exons)
-gene_file$exon <- unlist(gene_file$exon)
 gene_file <- gene_file[ , !(names(gene_file) %in% c("exon.count", "rcsb.genestructure.txt"))]
 
 # for some reason, not all of the exon counts match the number of exon regions retrieved?
