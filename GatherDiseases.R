@@ -2,13 +2,20 @@ library(rvest)
 library(httr)
 library(rentrez)
 
+
+
 ##########################################
 # Put Disease/Phenotype of interest below
 ##########################################
 
 disease.keyword = "Kidney Disease"
 
-# does the API lookup
+# Enter the path you would like the final CSV to be in:
+disease_file_path = "/Users/ksanders/Documents/"
+disease_file_name = paste(sub(" ", "_",disease.keyword),  ".csv", sep = "")
+
+
+# API lookup
 disease.search.count <- entrez_search(db="medgen", term=disease.keyword, retmax=0)$count
 disease.search <- entrez_search(db="medgen", term=disease.keyword, retmax=disease.search.count)
 
@@ -18,6 +25,7 @@ disease_file$summary <- entrez_summary(db="medgen", id =disease_file$id)
 disease_file$conceptid <- extract_from_esummary(disease_file$summary, "conceptid")
 disease_file$title <- extract_from_esummary(disease_file$summary, "title")
 disease_file$definition <- sapply(extract_from_esummary(disease_file$summary, "definition"), '[', 1)
+disease_file$definition <- unlist(lapply(disease_file$definition, toString))
 disease_file <- disease_file[ , !(names(disease_file) %in% c("summary"))]
 get_genes <- function(n){
   links <- entrez_link(dbfrom="medgen", id = disease_file$id[n], db='gene')$links
@@ -51,8 +59,12 @@ get_inheritance <- function(n){
       return("X")
     }
   }
+  return("")
 }
 disease_file$inheritance <- sapply(disease_file$definition, get_inheritance)
+disease_file$inheritance <- unlist(disease_file$inheritance)
+
+write.csv(disease_file, file=paste(disease_file_path, disease_file_name, sep=""), row.names = FALSE)
 
 # Webscraping for inheritance and disease???
 

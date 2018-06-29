@@ -181,17 +181,21 @@ gene_file <- gene_file[ , !(names(gene_file) %in% c("page", "hpa.rna.expression"
 gene_file$rcsb.url <- sapply(gene_file$name, function(x){
   paste("http://www.rcsb.org/pdb/gene/",x,"?v=hg19", sep = "")
 }) 
-gene_file$rcsb.genestructure.txt <- sapply(gene_file$rcsb.url, function(x){ 
+gene_file$rcsb.page <- lapply(gene_file$rcsb.url, function(x){
+  read_html(x)
+})
+gene_file$rcsb.genestructure.txt <- sapply(gene_file$rcsb.page, function(x){ 
   tryCatch({
-    read_html(x) %>% 
+    x %>% 
       html_nodes("body div.container table.table.table-hover tr td") %>% 
       html_text()
   },
            error = function(e){
              return(NULL)})
   })
+
 get_exons <- function(n){
-  if(!(length(gene_file$exon.count[[n]]) == 0)){
+  if(length(gene_file$rcsb.genestructure.txt) > 0){
     txt <- gene_file$rcsb.genestructure.txt[n]
     txt <- txt[[1]]
     exons <- ""
@@ -215,6 +219,7 @@ get_exons <- function(n){
 }
 gene_file$exon <- sapply(1:dim(gene_file)[1], get_exons)
 gene_file <- gene_file[ , !(names(gene_file) %in% c("exon.count", "rcsb.genestructure.txt"))]
+
 
 # for some reason, not all of the exon counts match the number of exon regions retrieved?
 # this code is to make the two match...

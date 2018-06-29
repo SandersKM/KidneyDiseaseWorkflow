@@ -72,6 +72,10 @@ exon_regions <- strsplit(gene_file$exon[gene.of.interest.row][[1]], split = "; "
 exon_regions <- lapply(exon_regions, substring, first = 3)
 exon_regions <- sapply(exon_regions, strsplit, split="-")
 exon_regions <- sapply(exon_regions, as.numeric)
+# correcting for different orientations
+if(exon_regions[1,1] < exon_regions[2, length(exon_regions[1,])]){
+  exon_regions <- exon_regions[,c(length(exon_regions[1,]):1)]
+}
 
 get_variant_exon <- function(position){
   closest_exon <- 0
