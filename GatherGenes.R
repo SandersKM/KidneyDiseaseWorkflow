@@ -5,7 +5,12 @@ data(ebicat37)
 library(rentrez)
 # brew install v8-315
 # install.packages("V8")
-library(V8)
+# library(V8)
+
+# Enter the path you would like the final CSV to be in:
+gene_file_path = "/Users/ksanders/Documents/"
+gene_file_name = paste("genes_",sub(" ", "_",disease.keyword),  ".csv", sep = "")
+
 
 gene_file <- data.frame(geneID = integer(dim(disease_file)[1]), phenotype = character(dim(disease_file)[1]), 
                         stringsAsFactors = FALSE)
@@ -59,24 +64,34 @@ get_ensemblID <- function(n){
   return(id)
 }
 gene_file$EnsemblID <- sapply(1:dim(gene_file)[1], get_ensemblID)
+gene_file$EnsemblID <- lapply(gene_file$EnsemblID, toString)
+gene_file$EnsemblID <- sub(",", ";", gene_file$EnsemblID)
+gene_file$EnsemblID <- unlist(gene_file$EnsemblID)
+
 # get start position of gene for hg19
 get_start_position <- function(n){
   id <- getBM("start_position", filters="hgnc_symbol", values=gene_file$name[n], mart=ensembl)
   return(as.numeric(id[[1]]))
 }
 gene_file$start_position <- lapply(1:dim(gene_file)[1], get_start_position)
+gene_file$start_position <- lapply(gene_file$start_position, toString)
+gene_file$start_position <- unlist(gene_file$start_position)
 # get end position of gene for hg19
 get_end_position <- function(n){
   id <- getBM("end_position", filters="hgnc_symbol", values=gene_file$name[n], mart=ensembl)
   return(as.numeric(id[[1]]))
 }
 gene_file$end_position <- sapply(1:dim(gene_file)[1], get_end_position)
+gene_file$end_position <- lapply(gene_file$end_position, toString)
+gene_file$end_position <- unlist(gene_file$end_position)
 # get percentage of GC content
 get_percentage_gc_content <- function(n){
   id <- getBM("percentage_gene_gc_content", filters="hgnc_symbol", values=gene_file$name[n], mart=ensembl)
   return(id[[1]])
 }
 gene_file$percentage_gc_content <- sapply(1:dim(gene_file)[1], get_percentage_gc_content)
+gene_file$percentage_gc_content <- lapply(gene_file$percentage_gc_content, toString)
+gene_file$percentage_gc_content <- unlist(gene_file$percentage_gc_content)
 
 gene_file <- gene_file[c("name", "description", "phenotype", "summary", "geneID", "EnsemblID", "mim",
                  "map.location", "chromosome", "start_position", "end_position", "exon.count", "percentage_gc_content")]
@@ -96,7 +111,6 @@ gene_file$hpa.url <- sapply(gene_file$EnsemblID, function(x){
 }) 
 
 gene_file$page <- sapply(gene_file$hpa.url, function(x){ 
-  print(x)
   if(!is.null(x)){
     tryCatch({read_html(x)},
              error = function(e){
@@ -114,18 +128,26 @@ gene_file$hpa.rna.expression <- sapply(gene_file$page, function(x){
 gene_file$hpa.rna.hpa.tpm <- sapply(gene_file$hpa.rna.expression, function(x){
   if(!is.null(x)){
     as.list(x[1] %>% html_nodes("td") %>% html_text())[[2]]}})
+gene_file$hpa.rna.hpa.tpm <- lapply(gene_file$hpa.rna.fantom5.tagspermillion, toString)
+gene_file$hpa.rna.hpa.tpm <- unlist(gene_file$hpa.rna.fantom5.tagspermillion)
+
 gene_file$hpa.rna.gtex.rpkm <- sapply(gene_file$hpa.rna.expression, function(x){
   if(!is.null(x)){
     tryCatch({as.list(x[2] %>% html_nodes("td") %>% html_text())[[2]]},
              error = function(e){
                return(NULL)
              })}})
+gene_file$hpa.rna.gtex.rpkm <- lapply(gene_file$hpa.rna.fantom5.tagspermillion, toString)
+gene_file$hpa.rna.gtex.rpkm <- unlist(gene_file$hpa.rna.fantom5.tagspermillion)
+
 gene_file$hpa.rna.fantom5.tagspermillion <- sapply(gene_file$hpa.rna.expression, function(x){
   if(!is.null(x)){
     tryCatch({as.list(x[3] %>% html_nodes("td") %>% html_text())[[2]]},
              error = function(e){
                return(NULL)
              })}})
+gene_file$hpa.rna.fantom5.tagspermillion <- lapply(gene_file$hpa.rna.fantom5.tagspermillion, toString)
+gene_file$hpa.rna.fantom5.tagspermillion <- unlist(gene_file$hpa.rna.fantom5.tagspermillion)
 
 gene_file$hpa.protein.expression <- sapply(gene_file$page, function(x){
   if(!is.null(x)){
@@ -139,23 +161,23 @@ gene_file$hpa.protein.glomeruli <- sapply(gene_file$hpa.protein.expression, func
              error = function(e){
                return(NULL)
              })}})
-gene_file$hpa.protein.glomeruli <- sapply(gene_file$hpa.protein.expression, function(x){
-  if(!is.null(x)){
-    tryCatch({as.list(x[1] %>% html_nodes("td") %>% html_text)[[2]]},
-             error = function(e){
-               return(NULL)
-             })}})
+gene_file$hpa.protein.glomeruli <- lapply(gene_file$hpa.protein.glomeruli, toString)
+gene_file$hpa.protein.glomeruli <- unlist(gene_file$hpa.protein.glomeruli)
+
 gene_file$hpa.protein.tubules <- sapply(gene_file$hpa.protein.expression, function(x){
   if(!is.null(x)){
     tryCatch({as.list(x[2] %>% html_nodes("td") %>% html_text)[[2]]},
              error = function(e){
                return(NULL)
              })}}) 
+gene_file$hpa.protein.tubules <- lapply(gene_file$hpa.protein.tubules, toString)
+gene_file$hpa.protein.tubules <- unlist(gene_file$hpa.protein.tubules)
 gene_file <- gene_file[ , !(names(gene_file) %in% c("page", "hpa.rna.expression",
                                                     "hpa.protein.expression"))]
 
 # Web scrapping to get gene structure exons 
 # let me know if you also want UTRs
+# TODO get orientation and GeneBankID to make sure exons are standard
 gene_file$rcsb.url <- sapply(gene_file$name, function(x){
   paste("http://www.rcsb.org/pdb/gene/",x,"?v=hg19", sep = "")
 }) 
@@ -168,8 +190,6 @@ gene_file$rcsb.genestructure.txt <- sapply(gene_file$rcsb.url, function(x){
            error = function(e){
              return(NULL)})
   })
-gene_file$exon <- sapply(1:dim(gene_file)[1], get_exons)
-
 get_exons <- function(n){
   if(!(length(gene_file$exon.count[[n]]) == 0)){
     txt <- gene_file$rcsb.genestructure.txt[n]
@@ -192,7 +212,8 @@ get_exons <- function(n){
   else{return(NULL)}
   
 }
-
+gene_file$exon <- sapply(1:dim(gene_file)[1], get_exons)
+gene_file$exon <- unlist(gene_file$exon)
 gene_file <- gene_file[ , !(names(gene_file) %in% c("exon.count", "rcsb.genestructure.txt"))]
 
 # for some reason, not all of the exon counts match the number of exon regions retrieved?
@@ -210,6 +231,10 @@ get_gnomad_website_gene <- function(n){
   return(NULL)
 }
 gene_file$gnomAD.website <- sapply(1:dim(gene_file)[1], get_gnomad_website_gene)
+gene_file$gnomAD.website <- lapply(gene_file$gnomAD.website, toString)
+gene_file$gnomAD.website <- unlist(gene_file$gnomAD.website)
+
+write.csv(gene_file, file=paste(gene_file_path, gene_file_name, sep=""), row.names = FALSE)
 
 # UniProt/swissprot
 # get_uniprotswissprot <- function(n){
