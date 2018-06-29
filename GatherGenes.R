@@ -128,8 +128,8 @@ gene_file$hpa.rna.expression <- sapply(gene_file$page, function(x){
 gene_file$hpa.rna.hpa.tpm <- sapply(gene_file$hpa.rna.expression, function(x){
   if(!is.null(x)){
     as.list(x[1] %>% html_nodes("td") %>% html_text())[[2]]}})
-gene_file$hpa.rna.hpa.tpm <- lapply(gene_file$hpa.rna.fantom5.tagspermillion, toString)
-gene_file$hpa.rna.hpa.tpm <- unlist(gene_file$hpa.rna.fantom5.tagspermillion)
+gene_file$hpa.rna.hpa.tpm <- lapply(gene_file$hpa.rna.hpa.tpm, toString)
+gene_file$hpa.rna.hpa.tpm <- unlist(gene_file$hpa.rna.hpa.tpm)
 
 gene_file$hpa.rna.gtex.rpkm <- sapply(gene_file$hpa.rna.expression, function(x){
   if(!is.null(x)){
@@ -137,8 +137,8 @@ gene_file$hpa.rna.gtex.rpkm <- sapply(gene_file$hpa.rna.expression, function(x){
              error = function(e){
                return(NULL)
              })}})
-gene_file$hpa.rna.gtex.rpkm <- lapply(gene_file$hpa.rna.fantom5.tagspermillion, toString)
-gene_file$hpa.rna.gtex.rpkm <- unlist(gene_file$hpa.rna.fantom5.tagspermillion)
+gene_file$hpa.rna.gtex.rpkm <- lapply(gene_file$hpa.rna.gtex.rpkm, toString)
+gene_file$hpa.rna.gtex.rpkm <- unlist(gene_file$hpa.rna.gtex.rpkm)
 
 gene_file$hpa.rna.fantom5.tagspermillion <- sapply(gene_file$hpa.rna.expression, function(x){
   if(!is.null(x)){
@@ -218,14 +218,8 @@ get_exons <- function(n){
   
 }
 gene_file$exon <- sapply(1:dim(gene_file)[1], get_exons)
-gene_file <- gene_file[ , !(names(gene_file) %in% c("exon.count", "rcsb.genestructure.txt"))]
+gene_file <- gene_file[ , !(names(gene_file) %in% c("exon.count", "rcsb.genestructure.txt", "rcsb.page"))]
 
-
-# for some reason, not all of the exon counts match the number of exon regions retrieved?
-# this code is to make the two match...
-gene_file$exon.count <- sapply(1:length(gene_file$exon)[1], function(n){
-  if(!is.null(gene_file$exon[n])){
-  length(gene_file$exon[[n]])}})
 
 get_gnomad_website_gene <- function(n){
   if(class(gene_file$EnsemblID[[n]]) != "logical"){
