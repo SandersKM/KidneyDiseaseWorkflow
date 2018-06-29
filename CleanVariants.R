@@ -70,7 +70,7 @@ exon_regions <- sapply(exon_regions, function(x){
   return(as.numeric(gsub(",", "", x, fixed = TRUE)))
 })
 
-get_variant_exon <- function(position, exon_regions){
+get_variant_exon <- function(position){
   closest_exon <- 0
   exon_dist <- abs(position - exon_regions[1,1])
   symb <- "+"
@@ -92,6 +92,7 @@ get_variant_exon <- function(position, exon_regions){
   return(paste(closest_exon, symb, exon_dist, sep = ""))
 }
 
+variants$exon <- sapply(variants$Position,get_variant_exon)
 
 # functions to get the ancestry of each variant in a nice format
 get_ancestors <- function(n){
