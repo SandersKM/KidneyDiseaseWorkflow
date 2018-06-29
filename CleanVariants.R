@@ -24,7 +24,9 @@ all_variants_path <- "/Users/ksanders/Downloads/MUC1_genes_all.csv"
 variants <- read.csv(all_variants_path, header = TRUE, sep=",")
 # Change the symbol to correspond to the gene of interest
 gene.of.interest.symbol <- "MUC1"
-gene.of.interest.row <- which(gene_file$name == "MUC1")
+# Enter the path you would like the final CSV to be in:
+variants_file_path = "/Users/ksanders/Documents/"
+variants_file_name = paste("variants_", gene.of.interest.symbol, ".csv", sep = "")
 
 
 samplefile <- system.file("extdata", "hg19_knownGene_sample.sqlite",
@@ -33,7 +35,6 @@ txdb <- loadDb(samplefile)
 gene.of.interest.ch <- paste("chr",gene_file$chromosome[gene.of.interest.row],sep = "")
 seqlevels(txdb) <- gene.of.interest.ch
 # to reset seqlevel use seqlevels(txdb) <- seqlevels0(txdb)
-#TODO - figure out the exon thing :-/
 
 
 # function to get rid of variants flagged with "LC LoF" or "SEGDUP" or with low and modifier annotations
@@ -54,6 +55,8 @@ variants <- variants[!(variants$clean == FALSE),]
 variants <- variants[ , !(names(variants) %in% c("clean", "Flags"))]
 
 # sort variants by position and get the position offset of each
+
+gene.of.interest.row <- which(gene_file$name == "MUC1")
 gene.of.interest.start <- gene_file$start_position[gene.of.interest.row][[1]]
 gene.of.interest.end <- gene_file$end_position[gene.of.interest.row][[1]]
 variants <- variants[order(variants$Position),]
@@ -65,10 +68,10 @@ get_position_offset <- function(n){
 variants$distance.from.start <- sapply(1:dim(variants)[1], get_position_offset)
 
 # find the cannonical exon (if any) each variant falls into
-exon_regions <- gene_file$exon[gene.of.interest.row][[1]]
-exon_regions <- sapply(exon_regions, function(x){
-  return(as.numeric(gsub(",", "", x, fixed = TRUE)))
-})
+exon_regions <- strsplit(gene_file$exon[gene.of.interest.row][[1]], split = "; ")[[1]]
+exon_regions <- lapply(exon_regions, substring, first = 3)
+exon_regions <- sapply(exon_regions, strsplit, split="-")
+exon_regions <- sapply(exon_regions, as.numeric)
 
 get_variant_exon <- function(position){
   closest_exon <- 0
@@ -81,12 +84,12 @@ get_variant_exon <- function(position){
     if(abs(position - exon_regions[1,i]) < exon_dist){
       closest_exon <- i
       exon_dist <- abs(position - exon_regions[1,i])
-      symb <- "-"
+      symb <- "+"
     }
     if(abs(position - exon_regions[2,i]) < exon_dist){
       closest_exon <- i
       exon_dist <- abs(position - exon_regions[2,i])
-      symb <- "+"
+      symb <- "-"
     }
   }
   return(paste(closest_exon, symb, exon_dist, sep = ""))
@@ -341,6 +344,11 @@ variants$num.na <- sapply(1:dim(variants)[1], function(n){overall_score_lists[[n
 
 # sort variants by the number of scores that passed cutoffs
 variants <- variants[order(-variants$num.pass),]
+
+
+
+
+write.csv(variants, file=paste(variants_file_path, variants_file_name, sep=""), row.names = FALSE)
 
 
 # package.install("webshot")
