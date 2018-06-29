@@ -18,26 +18,23 @@ library(SIFT.Hsapiens.dbSNP137)
 library(RISmed)
 
 
-samplefile <- system.file("extdata", "hg19_knownGene_sample.sqlite",
-                          package="GenomicFeatures")
-
+# download the variant CSV from the gnomAD browser for the 
+# gene of interest. Write the path file below
+all_variants_path <- "/Users/ksanders/Downloads/MUC1_genes_all.csv"
+variants <- read.csv(all_variants_path, header = TRUE, sep=",")
 # Change the symbol to correspond to the gene of interest
 gene.of.interest.symbol <- "MUC1"
 gene.of.interest.row <- which(gene_file$name == "MUC1")
 
 
+samplefile <- system.file("extdata", "hg19_knownGene_sample.sqlite",
+                          package="GenomicFeatures")
 txdb <- loadDb(samplefile)
 gene.of.interest.ch <- paste("chr",gene_file$chromosome[gene.of.interest.row],sep = "")
 seqlevels(txdb) <- gene.of.interest.ch
 # to reset seqlevel use seqlevels(txdb) <- seqlevels0(txdb)
 #TODO - figure out the exon thing :-/
 
-
-
-# download the variant CSV from the gnomAD browser for the 
-# gene of interest. Write the path file below
-all_variants_path <- "/Users/ksanders/Downloads/MUC1_genes_all.csv"
-variants <- read.csv(all_variants_path, header = TRUE, sep=",")
 
 # function to get rid of variants flagged with "LC LoF" or "SEGDUP" or with low and modifier annotations
 low_annotations <- c("splice region","synonymous","3' UTR","5' UTR","downstream gene","intron","upstream gene",
@@ -52,12 +49,49 @@ clean <- function(n){
   }
   return(TRUE)
 }
-
 variants$clean <- sapply(1:dim(variants)[1], clean)
 variants <- variants[!(variants$clean == FALSE),]
 variants <- variants[ , !(names(variants) %in% c("clean", "Flags"))]
 
-# TODO - label exon numbers (maybe get exons from somewhere?)
+# sort variants by position and get the position offset of each
+gene.of.interest.start <- gene_file$start_position[gene.of.interest.row][[1]]
+gene.of.interest.end <- gene_file$end_position[gene.of.interest.row][[1]]
+variants <- variants[order(variants$Position),]
+# used to get the row number of the scores
+get_position_offset <- function(n){
+  offset <- variants$Position[n] - gene.of.interest.start + 1
+  return(offset)
+}
+variants$distance.from.start <- sapply(1:dim(variants)[1], get_position_offset)
+
+# find the cannonical exon (if any) each variant falls into
+exon_regions <- gene_file$exon[gene.of.interest.row][[1]]
+exon_regions <- sapply(exon_regions, function(x){
+  return(as.numeric(gsub(",", "", x, fixed = TRUE)))
+})
+
+get_variant_exon <- function(position, exon_regions){
+  closest_exon <- 0
+  exon_dist <- abs(position - exon_regions[1,1])
+  symb <- "+"
+  for(i in 1:length(exon_regions[1,])){
+    if((position >= exon_regions[1,i]) && (position <= exon_regions[2,i])){
+      return(i)
+    }
+    if(abs(position - exon_regions[1,i]) < exon_dist){
+      closest_exon <- i
+      exon_dist <- abs(position - exon_regions[1,i])
+      symb <- "-"
+    }
+    if(abs(position - exon_regions[2,i]) < exon_dist){
+      closest_exon <- i
+      exon_dist <- abs(position - exon_regions[2,i])
+      symb <- "+"
+    }
+  }
+  return(paste(closest_exon, symb, exon_dist, sep = ""))
+}
+
 
 # functions to get the ancestry of each variant in a nice format
 get_ancestors <- function(n){
@@ -119,16 +153,6 @@ variants$gnomAD.website <- sapply(1:dim(variants)[1], get_gnomAD_website)
 
 gr <- GRanges(seqnames=gene.of.interest.ch,
               IRanges(start=gene.of.interest.start:gene.of.interest.end, width=1))
-
-# used to get the row number of the scores
-get_position_offset <- function(n){
-  offset <- variants$Position[n] - gene.of.interest.start + 1
-  return(offset)
-}
-
-gene.of.interest.start <- gene_file$start_position_on_the_genomic_accession[gene.of.interest.row]
-gene.of.interest.end <- gene_file$end_position_on_the_genomic_accession[gene.of.interest.row]
-variants$distance.from.start <- sapply(1:dim(variants)[1], get_position_offset)
 
 # phastCons100way.UCSC.hg19 - phastCon scores are derived from the alignment of the human genome (hg19)
 # and 99 other vertabrate species
