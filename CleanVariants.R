@@ -29,11 +29,11 @@ variants_file_path = "/Users/ksanders/Documents/"
 variants_file_name = paste("variants_", gene.of.interest.symbol, ".csv", sep = "")
 
 
-samplefile <- system.file("extdata", "hg19_knownGene_sample.sqlite",
-                          package="GenomicFeatures")
-txdb <- loadDb(samplefile)
-gene.of.interest.ch <- paste("chr",gene_file$chromosome[gene.of.interest.row],sep = "")
-seqlevels(txdb) <- gene.of.interest.ch
+# samplefile <- system.file("extdata", "hg19_knownGene_sample.sqlite",
+#                           package="GenomicFeatures")
+# txdb <- loadDb(samplefile)
+
+# seqlevels(txdb) <- gene.of.interest.ch
 # to reset seqlevel use seqlevels(txdb) <- seqlevels0(txdb)
 
 
@@ -57,8 +57,9 @@ variants <- variants[ , !(names(variants) %in% c("clean", "Flags"))]
 # sort variants by position and get the position offset of each
 
 gene.of.interest.row <- which(gene_file$name == "MUC1")
-gene.of.interest.start <- gene_file$start_position[gene.of.interest.row][[1]]
-gene.of.interest.end <- gene_file$end_position[gene.of.interest.row][[1]]
+gene.of.interest.start <- as.numeric(gene_file$start_position[gene.of.interest.row][[1]])
+gene.of.interest.end <- as.numeric(gene_file$end_position[gene.of.interest.row][[1]])
+gene.of.interest.ch <- paste("chr",gene_file$chromosome[gene.of.interest.row],sep = "")
 variants <- variants[order(variants$Position),]
 # used to get the row number of the scores
 get_position_offset <- function(n){
@@ -188,11 +189,10 @@ get_fitCon_score <- function(n){
 variants$fitCon.score <- sapply(1:dim(variants)[1], get_fitCon_score)
 
 # SIFT
-sift <- SIFT.Hsapiens.dbSNP137
-metadata(sift)
-sift.keys <- keys(sift)
-sift.scores <- scores(sift, gr)
-select(sift, sift.keys[10])
+# sift <- SIFT.Hsapiens.dbSNP137
+# sift.keys <- keys(sift)
+# sift.scores <- scores(sift, gr)
+# select(sift, sift.keys[10])
 
 
 # cadd.v1.3.hg19 - fitCons scores measure the fitness consequences of function annotation for the 
