@@ -1,11 +1,6 @@
 library(rvest)
 library(biomaRt)
-library(gwascat)
-data(ebicat37)
 library(rentrez)
-# brew install v8-315
-# install.packages("V8")
-# library(V8)
 
 # Enter the path you would like the final CSV to be in:
 gene_file_path = "/Users/ksanders/Documents/"
@@ -233,6 +228,11 @@ gene_file$gnomAD.website <- sapply(1:dim(gene_file)[1], get_gnomad_website_gene)
 gene_file$gnomAD.website <- lapply(gene_file$gnomAD.website, toString)
 gene_file$gnomAD.website <- unlist(gene_file$gnomAD.website)
 
+gene_file$pubids <- sapply(gene_file$name, function(x){
+  gsub(",",";",toString((entrez_search(db = "pubmed",
+                                       term = paste("(",x ," AND ", disease.keyword,")", 
+                                                    sep = ""), retmax = 9999)$ids)))})
+
 write.csv(gene_file, file=paste(gene_file_path, gene_file_name, sep=""), row.names = FALSE)
 
 # UniProt/swissprot
@@ -241,4 +241,5 @@ write.csv(gene_file, file=paste(gene_file_path, gene_file_name, sep=""), row.nam
 #   return(id)
 # }
 # gene_file$uniprotswissprot<- sapply(1:dim(gene_file)[1], get_uniprotswissprot)
+
 
