@@ -16,6 +16,10 @@ suppressPackageStartupMessages(library(MafDb.gnomADex.r2.0.1.hs37d5))
 suppressPackageStartupMessages(library(PolyPhen.Hsapiens.dbSNP131))
 library(SIFT.Hsapiens.dbSNP137)
 library(RISmed)
+library(gwascat)
+library(httr)
+library(jsonlite)
+library(rentrez)
 
 
 # download the variant CSV from the gnomAD browser for the 
@@ -150,6 +154,28 @@ get_gnomAD_website <- function(n){
 variants$gnomAD.website <- sapply(1:dim(variants)[1], get_gnomAD_website)
 
 
+##################################################
+# Geting PubMed Articles Mentioning the Variants #
+##################################################
+
+# variants$pubmed.summaries <- sapply(variants$RSID, function(x){
+#   if(x != "."){
+#     pubids <- entrez_search(db = "pubmed", term = paste("(",x,")",sep = ""))
+#     #if(length(pubids) > 0){
+#     #  return(entrez_summary(db = "pubmed", id = pubids$ids))
+#     #}
+#     if(length(pubids$id) > 0 ){
+#       print(x)
+#       return(pubids)
+#     }
+#     return("NO")
+#   }
+#   return("")
+# })
+
+
+
+
 #snp.db <- useMart(host="www.ensembl.org",biomart = "ENSEMBL_MART_SNP", dataset="hsapiens_snp")
 #snp.db.ids <- getBM(attributes = c("p_value", "allele", "polyphen_score", "polyphen_prediction", "validated"), 
 #                    filters =  c("snp_filter"), 
@@ -227,21 +253,21 @@ get_mcap_score <- function(n){
 variants$mcap.score <- sapply(1:dim(variants)[1], get_mcap_score)
 
 # get allele frequencies from gnomAD
-gnomAD.gen <- MafDb.gnomAD.r2.0.1.hs37d5
-gnomAD.ex <- MafDb.gnomADex.r2.0.1.hs37d5
-
-get_gnomAD.ex_AF <- function(n){
-  return(mafByOverlaps(gnomAD.ex,paste(variants$Chrom[n],
-                                       variants$Position[n],sep = ":"))$AF)
-}
-
-get_gnomAD.gen_AF <- function(n){
-  return(mafByOverlaps(gnomAD.gen,paste(variants$Chrom[n],
-                                       variants$Position[n],sep = ":"))$AF)
-}
-
-variants$gnomAD.ex.AF <- sapply(1:dim(variants)[1], get_gnomAD.ex_AF)
-variants$gnomAD.gen.AF <- sapply(1:dim(variants)[1], get_gnomAD.gen_AF)
+# gnomAD.gen <- MafDb.gnomAD.r2.0.1.hs37d5
+# gnomAD.ex <- MafDb.gnomADex.r2.0.1.hs37d5
+# 
+# get_gnomAD.ex_AF <- function(n){
+#   return(mafByOverlaps(gnomAD.ex,paste(variants$Chrom[n],
+#                                        variants$Position[n],sep = ":"))$AF)
+# }
+# 
+# get_gnomAD.gen_AF <- function(n){
+#   return(mafByOverlaps(gnomAD.gen,paste(variants$Chrom[n],
+#                                        variants$Position[n],sep = ":"))$AF)
+# }
+# 
+# variants$gnomAD.ex.AF <- sapply(1:dim(variants)[1], get_gnomAD.ex_AF)
+# variants$gnomAD.gen.AF <- sapply(1:dim(variants)[1], get_gnomAD.gen_AF)
 
 ####################################################################
 # You can change the score cutoffs below to match your research needs
@@ -350,8 +376,11 @@ variants$num.na <- sapply(1:dim(variants)[1], function(n){overall_score_lists[[n
 variants <- variants[order(-variants$num.pass),]
 
 
-
-
+current_gwascat <- makeCurrentGwascat(genome = "GRCh37")
+data(ebicat37)
+ag = function(x) as(x, "GRanges")
+ovaug.current.geneid = ag(current_gwascat[which(current_gwascat$SNP_GENE_IDS == gene_file$geneID[gene.of.interest.row])])
+ovaug.ebicat37 = ag(ebicat37[which(ebicat37$SNP_GENE_IDS == gene_file$geneID[gene.of.interest.row])])
 write.csv(variants, file=paste(variants_file_path, variants_file_name, sep=""), row.names = FALSE)
 
 
