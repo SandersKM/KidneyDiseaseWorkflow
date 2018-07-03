@@ -228,10 +228,26 @@ gene_file$gnomAD.website <- sapply(1:dim(gene_file)[1], get_gnomad_website_gene)
 gene_file$gnomAD.website <- lapply(gene_file$gnomAD.website, toString)
 gene_file$gnomAD.website <- unlist(gene_file$gnomAD.website)
 
+###############################################
+# PubMed IDs containing Gene Symbol AND disease keywords
+###############################################
+
 gene_file$pubids <- sapply(gene_file$name, function(x){
   gsub(",",";",toString((entrez_search(db = "pubmed",
                                        term = paste("(",x ," AND ", disease.keyword,")", 
                                                     sep = ""), retmax = 9999)$ids)))})
+###############################################
+# Clinvar IDs for Pathogenic variants
+###############################################
+
+gene_file$clinvar.pathogenic.variants <- sapply(gene_file$geneID, function(x){
+  gsub(",",";",toString(entrez_link(dbfrom = "gene", id = x, 
+                                    db="all")$links$gene_clinvar_specific))
+})
+
+###################
+# Write to CV
+###################
 
 write.csv(gene_file, file=paste(gene_file_path, gene_file_name, sep=""), row.names = FALSE)
 

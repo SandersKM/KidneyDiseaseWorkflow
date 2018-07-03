@@ -2,8 +2,6 @@ library(rvest)
 library(httr)
 library(rentrez)
 
-
-
 ##########################################
 # Put Disease/Phenotype of interest below
 ##########################################
