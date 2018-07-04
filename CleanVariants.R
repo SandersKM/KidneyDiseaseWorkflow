@@ -20,6 +20,8 @@ library(gwascat)
 library(httr)
 library(jsonlite)
 library(rentrez)
+library(httr)
+library(xml2)
 
 
 # download the variant CSV from the gnomAD browser for the 
@@ -250,7 +252,18 @@ get_mcap_score <- function(n){
     start=variants$Position[n]:variants$Position[n], width=1)), ref=as.character(variants$Reference[n]),
     alt=as.character(variants$Alternate[n]))$scores)
 }
+
+
 variants$mcap.score <- sapply(1:dim(variants)[1], get_mcap_score)
+
+variants$rest.api.url <- sapply(variants$Transcript.Consequence,function(x){
+  paste("http://grch37.rest.ensembl.org/vep/human/hgvs/", gene.of.interest.symbol, ":",
+        x ,"?content-type=application/json",sep="")})
+
+variants$rest.api.info <- sapply(variants$rest.api.url, function(x){
+  fromJSON(toJSON(content(GET(x))))})
+
+#FIND A WAY TO ANNOTATE Modifier(3); Moderate(8); ect . as well with scores. ask about score vs prediction
 
 # get allele frequencies from gnomAD
 # gnomAD.gen <- MafDb.gnomAD.r2.0.1.hs37d5
@@ -382,6 +395,9 @@ ag = function(x) as(x, "GRanges")
 ovaug.current.geneid = ag(current_gwascat[which(current_gwascat$SNP_GENE_IDS == gene_file$geneID[gene.of.interest.row])])
 ovaug.ebicat37 = ag(ebicat37[which(ebicat37$SNP_GENE_IDS == gene_file$geneID[gene.of.interest.row])])
 write.csv(variants, file=paste(variants_file_path, variants_file_name, sep=""), row.names = FALSE)
+
+
+
 
 
 # package.install("webshot")
