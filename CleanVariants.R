@@ -263,6 +263,38 @@ variants$rest.api.url <- sapply(variants$Transcript.Consequence,function(x){
 variants$rest.api.info <- sapply(variants$rest.api.url, function(x){
   fromJSON(toJSON(content(GET(x))))})
 
+variants$biotype <- character(dim(variants)[1])
+variants$consequences.all <- character(dim(variants)[1])
+variants$impact.all <- character(dim(variants)[1])
+variants$polyphen.score <- numeric(dim(variants)[1])
+variants$polyphen.prediction <- character(dim(variants)[1])
+variants$sift.score <- numeric(dim(variants)[1])
+variants$sift.prediction <- character(dim(variants)[1])
+
+list_factors_pretty <- function(x){
+  unique_factors <- unique(unlist(x))
+  factor_string <- ""
+  for(factor in unique_factors){
+    factor_string <- paste(factor_string, factor, " (", sum(x == factor), "); ", sep = "")
+  }
+  return(factor_string)
+}
+
+extract_ensembl_api_info <- function(n){
+  info <- variants$rest.api.info[[n]]$transcript_consequences[[1]]
+  info <- info[info$gene_symbol == gene.of.interest.symbol,]
+  variants$polyphen.score[n] <<- mean(as.numeric(unlist(info$polyphen_score)))
+  variants$polyphen.prediction[n] <<- list_factors_pretty(info$polyphen_prediction)
+  variants$sift.score[n] <<- mean(as.numeric(unlist(info$sift_score)))
+  variants$sift.prediction[n] <<- list_factors_pretty(info$sift_prediction)
+  variants$biotype[n] <<- list_factors_pretty(info$biotype)
+  variants$consequences.all[n] <<- list_factors_pretty(info$consequence_terms)
+  variants$impact.all[n] <<- list_factors_pretty(info$impact)
+}
+
+sapply(1:dim(variants)[1], extract_ensembl_api_info)
+
+
 #FIND A WAY TO ANNOTATE Modifier(3); Moderate(8); ect . as well with scores. ask about score vs prediction
 
 # get allele frequencies from gnomAD
