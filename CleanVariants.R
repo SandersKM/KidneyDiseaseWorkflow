@@ -263,13 +263,13 @@ variants$rest.api.url <- sapply(variants$Transcript.Consequence,function(x){
 variants$rest.api.info <- sapply(variants$rest.api.url, function(x){
   fromJSON(toJSON(content(GET(x))))})
 
-variants$biotype <- character(dim(variants)[1])
-variants$consequences.all <- character(dim(variants)[1])
-variants$impact.all <- character(dim(variants)[1])
 variants$polyphen.score <- numeric(dim(variants)[1])
 variants$polyphen.prediction <- character(dim(variants)[1])
 variants$sift.score <- numeric(dim(variants)[1])
 variants$sift.prediction <- character(dim(variants)[1])
+variants$biotype <- character(dim(variants)[1])
+variants$consequences.all <- character(dim(variants)[1])
+variants$impact.all <- character(dim(variants)[1])
 
 list_factors_pretty <- function(x){
   unique_factors <- unique(unlist(x))
@@ -294,8 +294,6 @@ extract_ensembl_api_info <- function(n){
 
 sapply(1:dim(variants)[1], extract_ensembl_api_info)
 
-
-#FIND A WAY TO ANNOTATE Modifier(3); Moderate(8); ect . as well with scores. ask about score vs prediction
 
 # get allele frequencies from gnomAD
 # gnomAD.gen <- MafDb.gnomAD.r2.0.1.hs37d5
@@ -335,6 +333,12 @@ score.cutoff.mcap <- 0.025
 
 # gnomAD maximum AF:
 score.cutoff.AFgnomAD <- 0.01
+
+# SIFT maximum score:
+score.cutoff.sift <- 0.05
+
+# PolyPhen2 mimimum score:
+score.cutoff.polyphen <- 0.909
 
 # functions to return the number of scores that pass/fail/NA
 
@@ -395,11 +399,36 @@ passes_gnomAD <- function(n){
   }
 }
 
+passes_polyphen <- function(n){
+  if(is.na(variants$polyphen.score[n])){
+    return(NA)
+  }
+  else if(variants$polyphen.score[n] >= score.cutoff.polyphen){
+    return(1)
+  }
+  else{
+    return(0)
+  }
+}
+
+passes_sift <- function(n){
+  if(is.na(variants$sift.score[n])){
+    return(NA)
+  }
+  else if(variants$sift.score[n] <= score.cutoff.sift){
+    return(1)
+  }
+  else{
+    return(0)
+  }
+}
+
 overall_score <- function(n){
   pass <- 0
   fail <- 0
   n.a <- 0
-  passed_list <- c(passes_gnomAD(n), passes_mcap(n), passes_phastCons(n), passes_fitCons(n), passes_cadd(n))
+  passed_list <- c(passes_gnomAD(n), passes_mcap(n), passes_phastCons(n), passes_fitCons(n), 
+                   passes_cadd(n), passes_polyphen(n), passes_sift(n))
   for(i in passed_list){
     if(is.na(i)){
       n.a <- n.a + 1
@@ -417,6 +446,9 @@ variants$num.pass <- sapply(1:dim(variants)[1], function(n){overall_score_lists[
 variants$num.fail <- sapply(1:dim(variants)[1], function(n){overall_score_lists[[n]][2]})
 variants$num.na <- sapply(1:dim(variants)[1], function(n){overall_score_lists[[n]][3]})
 
+variants <- variants[ , !(names(variants) %in% c("rest.api.url", "rest.api.info", 
+                                                 "rest.api.transcript.consequences"))]
+
 # sort variants by the number of scores that passed cutoffs
 variants <- variants[order(-variants$num.pass),]
 
@@ -426,6 +458,11 @@ data(ebicat37)
 ag = function(x) as(x, "GRanges")
 ovaug.current.geneid = ag(current_gwascat[which(current_gwascat$SNP_GENE_IDS == gene_file$geneID[gene.of.interest.row])])
 ovaug.ebicat37 = ag(ebicat37[which(ebicat37$SNP_GENE_IDS == gene_file$geneID[gene.of.interest.row])])
+
+###################
+# Write to CV
+###################
+
 write.csv(variants, file=paste(variants_file_path, variants_file_name, sep=""), row.names = FALSE)
 
 
