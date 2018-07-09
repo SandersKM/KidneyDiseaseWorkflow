@@ -17,7 +17,6 @@ suppressPackageStartupMessages(library(PolyPhen.Hsapiens.dbSNP131))
 library(SIFT.Hsapiens.dbSNP137)
 library(RISmed)
 library(gwascat)
-library(httr)
 library(jsonlite)
 library(rentrez)
 library(httr)
@@ -26,10 +25,10 @@ library(xml2)
 
 # download the variant CSV from the gnomAD browser for the 
 # gene of interest. Write the path file below
-all_variants_path <- "/Users/ksanders/Downloads/MUC1_genes_all.csv"
+all_variants_path <- "/Users/ksanders/Downloads/exac_ENSG00000169344_2018_07_09_15_16_05.csv"
 variants <- read.csv(all_variants_path, header = TRUE, sep=",")
 # Change the symbol to correspond to the gene of interest
-gene.of.interest.symbol <- "MUC1"
+gene.of.interest.symbol <- "UMOD"
 # Enter the path you would like the final CSV to be in:
 variants_file_path = "/Users/ksanders/Documents/"
 variants_file_name = paste("variants_", gene.of.interest.symbol, ".csv", sep = "")
@@ -62,7 +61,7 @@ variants <- variants[ , !(names(variants) %in% c("clean", "Flags"))]
 
 # sort variants by position and get the position offset of each
 
-gene.of.interest.row <- which(gene_file$name == "MUC1")
+gene.of.interest.row <- which(gene_file$name == gene.of.interest.symbol)
 gene.of.interest.start <- as.numeric(gene_file$start_position[gene.of.interest.row][[1]])
 gene.of.interest.end <- as.numeric(gene_file$end_position[gene.of.interest.row][[1]])
 gene.of.interest.ch <- paste("chr",gene_file$chromosome[gene.of.interest.row],sep = "")
@@ -76,7 +75,7 @@ variants$distance.from.start <- sapply(1:dim(variants)[1], get_position_offset)
 
 # find the cannonical exon (if any) each variant falls into
 exon_regions <- strsplit(gene_file$exon[gene.of.interest.row][[1]], split = "; ")[[1]]
-exon_regions <- lapply(exon_regions, substring, first = 3)
+exon_regions <- lapply(exon_regions, function(x){substring(x, first = (as.integer(regexpr(":",x)[1])) + 1) })
 exon_regions <- sapply(exon_regions, strsplit, split="-")
 exon_regions <- sapply(exon_regions, as.numeric)
 # correcting for different orientations
@@ -128,7 +127,7 @@ get_ancestors <- function(n){
 
 write_ancestors <- function(name, number){
   ancestor <- ""
-  if(number != 0){
+  if(length(number) > 0 && number != 0){
     ancestor <- paste(name," (", number, "); ", sep = "")
   }
   return(ancestor)
@@ -216,16 +215,10 @@ get_fitCon_score <- function(n){
 }
 variants$fitCon.score <- sapply(1:dim(variants)[1], get_fitCon_score)
 
-# SIFT
-# sift <- SIFT.Hsapiens.dbSNP137
-# sift.keys <- keys(sift)
-# sift.scores <- scores(sift, gr)
-# select(sift, sift.keys[10])
-
-
 # cadd.v1.3.hg19 - fitCons scores measure the fitness consequences of function annotation for the 
 # human genome (hg19)
 # These scores are rounded to provide faster lookup
+
 cadd <- getGScores("cadd.v1.3.hg19")
 citation(cadd) # the citation for the genomic scores
 # used to get the cadd score for each variant in the table
@@ -474,12 +467,6 @@ write.csv(variants, file=paste(variants_file_path, variants_file_name, sep=""), 
 # webshot::install_phantomjs()
 #url <- variants$gnomAD.website[1]
 #webshot(url)
-
-#PolyPhen database
-#polyphen <- PolyPhen.Hsapiens.dbSNP131
-# I haven't been able to figure this out :(
-# https://bioconductor.org/packages/release/data/annotation/manuals/PolyPhen.Hsapiens.dbSNP131/man/PolyPhen.Hsapiens.dbSNP131.pdf
-
 
 # ah = AnnotationHub()
 # ah <- subset(ah, species == "Homo sapiens")
