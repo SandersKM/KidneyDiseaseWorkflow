@@ -1,9 +1,8 @@
 # Uncomment and run the following lines.
 # It will take a few minutes, so be patient
 # source("https://bioconductor.org/biocLite.R")
-# biocLite("SIFT.Hsapiens.dbSNP137")
+# biocLite("fitCons.UCSC.hg19")
 # biocLite("phastCons100way.UCSC.hg19")
-
 
 suppressPackageStartupMessages(library(AnnotationHub))
 suppressPackageStartupMessages(library(GenomicScores))
@@ -11,10 +10,6 @@ suppressPackageStartupMessages(library(phastCons100way.UCSC.hg19))
 suppressPackageStartupMessages(library(fitCons.UCSC.hg19))
 suppressPackageStartupMessages(library(BSgenome.Hsapiens.UCSC.hg19))
 suppressPackageStartupMessages(library(GenomicFeatures))
-suppressPackageStartupMessages(library(MafDb.gnomAD.r2.0.1.hs37d5))
-suppressPackageStartupMessages(library(MafDb.gnomADex.r2.0.1.hs37d5))
-suppressPackageStartupMessages(library(PolyPhen.Hsapiens.dbSNP131))
-library(SIFT.Hsapiens.dbSNP137)
 library(RISmed)
 library(gwascat)
 library(jsonlite)
@@ -25,10 +20,10 @@ library(xml2)
 
 # download the variant CSV from the gnomAD browser for the 
 # gene of interest. Write the path file below
-all_variants_path <- "/Users/ksanders/Downloads/exac_ENSG00000169344_2018_07_09_15_16_05.csv"
+all_variants_path <- "/Users/ksanders/Downloads/gnomad_ENSG00000185499_2018_07_10_08_45_10.csv"
 variants <- read.csv(all_variants_path, header = TRUE, sep=",")
 # Change the symbol to correspond to the gene of interest
-gene.of.interest.symbol <- "UMOD"
+gene.of.interest.symbol <- "MUC1"
 # Enter the path you would like the final CSV to be in:
 variants_file_path = "/Users/ksanders/Documents/"
 variants_file_name = paste("variants_", gene.of.interest.symbol, ".csv", sep = "")
@@ -154,35 +149,6 @@ get_gnomAD_website <- function(n){
 
 variants$gnomAD.website <- sapply(1:dim(variants)[1], get_gnomAD_website)
 
-
-##################################################
-# Geting PubMed Articles Mentioning the Variants #
-##################################################
-
-# variants$pubmed.summaries <- sapply(variants$RSID, function(x){
-#   if(x != "."){
-#     pubids <- entrez_search(db = "pubmed", term = paste("(",x,")",sep = ""))
-#     #if(length(pubids) > 0){
-#     #  return(entrez_summary(db = "pubmed", id = pubids$ids))
-#     #}
-#     if(length(pubids$id) > 0 ){
-#       print(x)
-#       return(pubids)
-#     }
-#     return("NO")
-#   }
-#   return("")
-# })
-
-
-
-
-#snp.db <- useMart(host="www.ensembl.org",biomart = "ENSEMBL_MART_SNP", dataset="hsapiens_snp")
-#snp.db.ids <- getBM(attributes = c("p_value", "allele", "polyphen_score", "polyphen_prediction", "validated"), 
-#                    filters =  c("snp_filter"), 
-#                    values = list(variants$RSID[2]),
-#                    mart = snp.db)
-
 #################################
 # Get Genomic Scores
 #################################
@@ -193,7 +159,8 @@ gr <- GRanges(seqnames=gene.of.interest.ch,
 # phastCons100way.UCSC.hg19 - phastCon scores are derived from the alignment of the human genome (hg19)
 # and 99 other vertabrate species
 
-gsco <- phastCons100way.UCSC.hg19
+
+gsco <- get0("gsco", ifnotfound = phastCons100way.UCSC.hg19)
 citation(gsco) # the citation for the genomic scores
 phastCon.scores <- scores(gsco, gr)
 
@@ -206,7 +173,7 @@ variants$phastCon.score <- sapply(1:dim(variants)[1], get_phastCon_score)
 # fitCons.UCSC.hg19 - fitCons scores measure the fitness consequences of function annotation for the 
 # human genome (hg19)
 
-fitcon <- fitCons.UCSC.hg19
+fitcon <- get0("fitcon", ifnotfound = fitCons.UCSC.hg19)
 citation(fitcon) # the citation for the genomic scores
 fitCon.scores <- scores(fitcon, gr)
 # used to get the fitCon score for each variant in the table
@@ -218,8 +185,9 @@ variants$fitCon.score <- sapply(1:dim(variants)[1], get_fitCon_score)
 # cadd.v1.3.hg19 - fitCons scores measure the fitness consequences of function annotation for the 
 # human genome (hg19)
 # These scores are rounded to provide faster lookup
-
-cadd <- getGScores("cadd.v1.3.hg19")
+if (!exists("cadd")){
+  cadd <- getGScores("cadd.v1.3.hg19")
+}
 citation(cadd) # the citation for the genomic scores
 # used to get the cadd score for each variant in the table
 get_cadd_score <- function(n){
@@ -234,7 +202,9 @@ variants$cadd.score <- sapply(1:dim(variants)[1], get_cadd_score)
 
 
 # get mcap scores
-mcap <- getGScores("mcap.v1.0.hg19")
+if (!exists("mcap")){
+  mcap <- getGScores("mcap.v1.0.hg19")
+}
 citation(mcap) # the citation for the genomic scores
 # used to get the mcap score for each variant in the table
 get_mcap_score <- function(n){
@@ -286,24 +256,6 @@ extract_ensembl_api_info <- function(n){
 }
 
 sapply(1:dim(variants)[1], extract_ensembl_api_info)
-
-
-# get allele frequencies from gnomAD
-# gnomAD.gen <- MafDb.gnomAD.r2.0.1.hs37d5
-# gnomAD.ex <- MafDb.gnomADex.r2.0.1.hs37d5
-# 
-# get_gnomAD.ex_AF <- function(n){
-#   return(mafByOverlaps(gnomAD.ex,paste(variants$Chrom[n],
-#                                        variants$Position[n],sep = ":"))$AF)
-# }
-# 
-# get_gnomAD.gen_AF <- function(n){
-#   return(mafByOverlaps(gnomAD.gen,paste(variants$Chrom[n],
-#                                        variants$Position[n],sep = ":"))$AF)
-# }
-# 
-# variants$gnomAD.ex.AF <- sapply(1:dim(variants)[1], get_gnomAD.ex_AF)
-# variants$gnomAD.gen.AF <- sapply(1:dim(variants)[1], get_gnomAD.gen_AF)
 
 ####################################################################
 # You can change the score cutoffs below to match your research needs
@@ -439,18 +391,12 @@ variants$num.pass <- sapply(1:dim(variants)[1], function(n){overall_score_lists[
 variants$num.fail <- sapply(1:dim(variants)[1], function(n){overall_score_lists[[n]][2]})
 variants$num.na <- sapply(1:dim(variants)[1], function(n){overall_score_lists[[n]][3]})
 
-variants <- variants[ , !(names(variants) %in% c("rest.api.url", "rest.api.info", 
-                                                 "rest.api.transcript.consequences"))]
+# Erase unneeded rows
+variants <- variants[ , !(names(variants) %in% c("rest.api.url", "rest.api.info", "source", "distance.from.start",
+                                                 "rest.api.transcript.consequences","Consequence", "Filters...exomes", "Filters...genomes"))]
 
 # sort variants by the number of scores that passed cutoffs
 variants <- variants[order(-variants$num.pass),]
-
-
-current_gwascat <- makeCurrentGwascat(genome = "GRCh37")
-data(ebicat37)
-ag = function(x) as(x, "GRanges")
-ovaug.current.geneid = ag(current_gwascat[which(current_gwascat$SNP_GENE_IDS == gene_file$geneID[gene.of.interest.row])])
-ovaug.ebicat37 = ag(ebicat37[which(ebicat37$SNP_GENE_IDS == gene_file$geneID[gene.of.interest.row])])
 
 ###################
 # Write to CV
@@ -458,19 +404,3 @@ ovaug.ebicat37 = ag(ebicat37[which(ebicat37$SNP_GENE_IDS == gene_file$geneID[gen
 
 write.csv(variants, file=paste(variants_file_path, variants_file_name, sep=""), row.names = FALSE)
 
-
-
-
-
-# package.install("webshot")
-#library(webshot)
-# webshot::install_phantomjs()
-#url <- variants$gnomAD.website[1]
-#webshot(url)
-
-# ah = AnnotationHub()
-# ah <- subset(ah, species == "Homo sapiens")
-# ah
-# grch37 <- query(ah, "GRCh37", "hg19")
-# grch37$genome
-# display(grch37)
