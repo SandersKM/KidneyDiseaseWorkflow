@@ -1,6 +1,8 @@
 library(rvest)
 library(biomaRt)
 library(rentrez)
+suppressPackageStartupMessages(library(GenomicFeatures))
+library(TxDb.Hsapiens.UCSC.hg19.knownGene)
 
 # Enter the path you would like the final CSV to be in:
 gene_file_path = "/Users/ksanders/Documents/"
@@ -50,52 +52,24 @@ gene_file$exon.count <- sapply(1:dim(gene_file)[1], function(x){as.integer(extra
 gene_file$exon.count <- sapply(gene_file$exon.count, as.numeric)
 gene_file$summary <- extract_from_esummary(gene_file$summary, "summary")
 
-
 # set up biomart
 ensembl = useEnsembl(biomart="ensembl", dataset="hsapiens_gene_ensembl", GRCh=37)
-# get ensemblIDs
-get_ensemblID <- function(n){
-  id <- getBM("ensembl_gene_id", filters="hgnc_symbol", values=gene_file$name[n], mart=ensembl)
-  return(id)
-}
-gene_file$EnsemblID <- sapply(1:dim(gene_file)[1], get_ensemblID)
-gene_file$EnsemblID <- lapply(gene_file$EnsemblID, toString)
-gene_file$EnsemblID <- sub(",", ";", gene_file$EnsemblID)
-gene_file$EnsemblID <- unlist(gene_file$EnsemblID)
 
-# get start position of gene for hg19
-get_start_position <- function(n){
-  id <- getBM("start_position", filters="hgnc_symbol", values=gene_file$name[n], mart=ensembl)
-  return(as.numeric(id[[1]]))
-}
-gene_file$start_position <- lapply(1:dim(gene_file)[1], get_start_position)
-gene_file$start_position <- lapply(gene_file$start_position, toString)
-gene_file$start_position <- unlist(gene_file$start_position)
-# get end position of gene for hg19
-get_end_position <- function(n){
-  id <- getBM("end_position", filters="hgnc_symbol", values=gene_file$name[n], mart=ensembl)
-  return(as.numeric(id[[1]]))
-}
-gene_file$end_position <- sapply(1:dim(gene_file)[1], get_end_position)
-gene_file$end_position <- lapply(gene_file$end_position, toString)
-gene_file$end_position <- unlist(gene_file$end_position)
-# get percentage of GC content
-get_percentage_gc_content <- function(n){
-  id <- getBM("percentage_gene_gc_content", filters="hgnc_symbol", values=gene_file$name[n], mart=ensembl)
-  return(id[[1]])
-}
-gene_file$percentage_gc_content <- sapply(1:dim(gene_file)[1], get_percentage_gc_content)
-gene_file$percentage_gc_content <- lapply(gene_file$percentage_gc_content, toString)
-gene_file$percentage_gc_content <- unlist(gene_file$percentage_gc_content)
+# get information from biomart
+allBM <- getBM(c("hgnc_symbol","ensembl_gene_id","start_position", "end_position", "strand"), filters="hgnc_symbol", 
+                  values=gene_file$name, mart=ensembl)
+# merge rows where 1 hgnc symbol has >1 ensembl ID
+allBM <- aggregate(allBM[,-1], list(allBM[,1]), function(x) paste0(unique(x), collapse = "; "))
+names(allBM)[names(allBM) == 'Group.1'] <- "name"
+# merge the biomart results with the gene file
+gene_file = merge(x = gene_file, y = allBM, by="name",all.x=T, all.y = F)
 
-gene_file <- gene_file[c("name", "description", "phenotype", "summary", "geneID", "EnsemblID", "mim",
-                 "map.location", "chromosome", "start_position", "end_position", "exon.count", "percentage_gc_content")]
 
 # Web scrapping on Human Protein Atlas for protein/rna expression data in kidney
 # If you are not looking at kidney disease, this can be easily modified. 
-gene_file$hpa.url <- sapply(gene_file$EnsemblID, function(x){
+gene_file$hpa.url <- sapply(gene_file$ensembl_gene_id, function(x){
   if(!is.logical(x)){
-    # if there is > 1 EnsemblID, I am just using the first. 
+    # if there is > 1 ensembl_gene_id, I am just using the first. 
     if(length(x) > 1){
       paste("https://www.proteinatlas.org/",x[[1]],"/tissue/kidney", sep = "")
     } 
@@ -217,9 +191,9 @@ gene_file <- gene_file[ , !(names(gene_file) %in% c("exon.count", "rcsb.genestru
 
 
 get_gnomad_website_gene <- function(n){
-  if(class(gene_file$EnsemblID[[n]]) != "logical"){
+  if(class(gene_file$ensembl_gene_id[[n]]) != "logical"){
     base_url <- "http://gnomad.broadinstitute.org/gene/"
-    variantID <- gene_file$EnsemblID[n]
+    variantID <- gene_file$ensembl_gene_id[n]
     return(paste(base_url,variantID,sep = ""))
   }
   return(NULL)
@@ -232,18 +206,19 @@ gene_file$gnomAD.website <- unlist(gene_file$gnomAD.website)
 # PubMed IDs containing Gene Symbol AND disease keywords
 ###############################################
 
-gene_file$pubids <- sapply(gene_file$name, function(x){
-  gsub(",",";",toString((entrez_search(db = "pubmed",
-                                       term = paste("(",x ," AND ", disease.keyword,")", 
-                                                    sep = ""), retmax = 9999)$ids)))})
+# gene_file$pubids <- sapply(gene_file$name, function(x){
+#   gsub(",",";",toString((entrez_search(db = "pubmed",
+#                                        term = paste("(",x ," AND ", disease.keyword,")", 
+#                                                    sep = ""), retmax = 9999)$ids)))})
+
 ###############################################
 # Clinvar IDs for Pathogenic variants
 ###############################################
 
-gene_file$clinvar.pathogenic.variants <- sapply(gene_file$geneID, function(x){
-  gsub(",",";",toString(entrez_link(dbfrom = "gene", id = x, 
-                                    db="all")$links$gene_clinvar_specific))
-})
+# gene_file$clinvar.pathogenic.variants <- sapply(gene_file$geneID, function(x){
+#   gsub(",",";",toString(entrez_link(dbfrom = "gene", id = x, 
+#                                     db="all")$links$gene_clinvar_specific))
+# })
 
 ###################
 # Write to CV
