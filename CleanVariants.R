@@ -9,14 +9,15 @@ suppressPackageStartupMessages(library(GenomicScores))
 suppressPackageStartupMessages(library(phastCons100way.UCSC.hg19))
 suppressPackageStartupMessages(library(fitCons.UCSC.hg19))
 suppressPackageStartupMessages(library(BSgenome.Hsapiens.UCSC.hg19))
-suppressPackageStartupMessages(library(GenomicFeatures))
+
 library(RISmed)
 library(gwascat)
 library(jsonlite)
 library(rentrez)
 library(httr)
 library(xml2)
-
+library(GenomeGraphs)
+library(Gviz)
 
 # download the variant CSV from the gnomAD browser for the 
 # gene of interest. Write the path file below
@@ -29,12 +30,7 @@ variants_file_path = "/Users/ksanders/Documents/"
 variants_file_name = paste("variants_", gene.of.interest.symbol, ".csv", sep = "")
 
 
-# samplefile <- system.file("extdata", "hg19_knownGene_sample.sqlite",
-#                           package="GenomicFeatures")
-# txdb <- loadDb(samplefile)
 
-# seqlevels(txdb) <- gene.of.interest.ch
-# to reset seqlevel use seqlevels(txdb) <- seqlevels0(txdb)
 
 
 # function to get rid of variants flagged with "LC LoF" or "SEGDUP" or with low and modifier annotations
@@ -403,4 +399,17 @@ variants <- variants[order(-variants$num.pass),]
 ###################
 
 write.csv(variants, file=paste(variants_file_path, variants_file_name, sep=""), row.names = FALSE)
+
+##################
+# Make Plot
+##################
+
+ensembl <- get0("ensembl", ifnotfound = useEnsembl(biomart="ensembl", dataset="hsapiens_gene_ensembl", GRCh=37)) 
+ideoTrack <- IdeogramTrack(genome = "hg19", chromosome =  gene.of.interest.ch)
+gene.image <- makeGene(id = gene.of.interest.symbol, type = "hgnc_symbol", biomart = ensembl) 
+genomeAxis <- makeGenomeAxis(add53 = TRUE, add35=TRUE)
+expres <- makeGenericArray(intensity = as.matrix(variants$num.pass), probeStart = as.numeric(
+  variants$Position), dp = DisplayPars(type = "dot", lwd = 3)) # shows number of scores passed
+gdPlot(list(genomeAxis, Exons=gene.image, "Scores Passed"= expres),
+       minBase = gene.of.interest.start, maxBase =gene.of.interest.end, labelCex = 2) # plots all 3 images
 
