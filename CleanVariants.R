@@ -53,8 +53,8 @@ variants <- variants[ , !(names(variants) %in% c("clean", "Flags"))]
 # sort variants by position and get the position offset of each
 
 gene.of.interest.row <- which(gene_file$name == gene.of.interest.symbol)
-gene.of.interest.start <- as.numeric(gene_file$start_position[gene.of.interest.row][[1]])
-gene.of.interest.end <- as.numeric(gene_file$end_position[gene.of.interest.row][[1]])
+gene.of.interest.start <- as.numeric(strsplit(gene_file$start_position[gene.of.interest.row][[1]], split = "; ")[[1]][1])
+gene.of.interest.end <- as.numeric(strsplit(gene_file$end_position[gene.of.interest.row][[1]], split = "; ")[[1]][1])
 gene.of.interest.ch <- paste("chr",gene_file$chromosome[gene.of.interest.row],sep = "")
 variants <- variants[order(variants$Position),]
 # used to get the row number of the scores
@@ -409,7 +409,6 @@ ideoTrack <- IdeogramTrack(genome = "hg19", chromosome =  gene.of.interest.ch)
 gene.image <- makeGene(id = gene.of.interest.symbol, type = "hgnc_symbol", biomart = ensembl) 
 genomeAxis <- makeGenomeAxis(add53 = TRUE, add35=TRUE)
 expres <- makeGenericArray(intensity = as.matrix(variants$num.pass), probeStart = as.numeric(
-  variants$Position), dp = DisplayPars(type = "dot", lwd = 3)) # shows number of scores passed
+  variants$Position), dp = DisplayPars(type = "dot", lwd = 2, pch = "o")) # shows number of scores passed
 gdPlot(list(genomeAxis, Exons=gene.image, "Scores Passed"= expres),
        minBase = gene.of.interest.start, maxBase =gene.of.interest.end, labelCex = 2) # plots all 3 images
-
