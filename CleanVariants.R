@@ -3,7 +3,7 @@
 # source("https://bioconductor.org/biocLite.R")
 # biocLite("fitCons.UCSC.hg19")
 # biocLite("phastCons100way.UCSC.hg19")
-
+start_time <- Sys.time()
 suppressPackageStartupMessages(library(AnnotationHub))
 suppressPackageStartupMessages(library(GenomicScores))
 suppressPackageStartupMessages(library(phastCons100way.UCSC.hg19))
@@ -155,8 +155,9 @@ gr <- GRanges(seqnames=gene.of.interest.ch,
 # phastCons100way.UCSC.hg19 - phastCon scores are derived from the alignment of the human genome (hg19)
 # and 99 other vertabrate species
 
-
-gsco <- get0("gsco", ifnotfound = phastCons100way.UCSC.hg19)
+if(!exists("gsco")){
+  gsco <- phastCons100way.UCSC.hg19
+}
 citation(gsco) # the citation for the genomic scores
 phastCon.scores <- scores(gsco, gr)
 
@@ -169,7 +170,9 @@ variants$phastCon.score <- sapply(1:dim(variants)[1], get_phastCon_score)
 # fitCons.UCSC.hg19 - fitCons scores measure the fitness consequences of function annotation for the 
 # human genome (hg19)
 
-fitcon <- get0("fitcon", ifnotfound = fitCons.UCSC.hg19)
+if(!exists("fitcon")){
+  fitcon <- fitCons.UCSC.hg19
+}
 citation(fitcon) # the citation for the genomic scores
 fitCon.scores <- scores(fitcon, gr)
 # used to get the fitCon score for each variant in the table
@@ -215,12 +218,9 @@ get_mcap_score <- function(n){
 
 variants$mcap.score <- sapply(1:dim(variants)[1], get_mcap_score)
 
-variants$rest.api.url <- sapply(variants$Transcript.Consequence,function(x){
-  paste("http://grch37.rest.ensembl.org/vep/human/hgvs/", gene.of.interest.symbol, ":",
-        x ,"?content-type=application/json",sep="")})
-
-variants$rest.api.info <- sapply(variants$rest.api.url, function(x){
-  fromJSON(toJSON(content(GET(x))))})
+##########################################
+# Extracting scores from Ensembl Rest API
+##########################################
 
 variants$polyphen.score <- numeric(dim(variants)[1])
 variants$polyphen.prediction <- character(dim(variants)[1])
@@ -239,9 +239,8 @@ list_factors_pretty <- function(x){
   return(factor_string)
 }
 
-extract_ensembl_api_info <- function(n){
-  info <- variants$rest.api.info[[n]]$transcript_consequences[[1]]
-  info <- info[info$gene_symbol == gene.of.interest.symbol,]
+extract_ensembl_api_info <- function(n, rest.api.info){
+  info <- rest.api.info[rest.api.info$gene_symbol == gene.of.interest.symbol,]
   variants$polyphen.score[n] <<- mean(as.numeric(unlist(info$polyphen_score)))
   variants$polyphen.prediction[n] <<- list_factors_pretty(info$polyphen_prediction)
   variants$sift.score[n] <<- mean(as.numeric(unlist(info$sift_score)))
@@ -251,7 +250,24 @@ extract_ensembl_api_info <- function(n){
   variants$impact.all[n] <<- list_factors_pretty(info$impact)
 }
 
-sapply(1:dim(variants)[1], extract_ensembl_api_info)
+server <- "http://grch37.rest.ensembl.org"
+ext <- "/vep/human/hgvs"
+i <- 1
+while(i < dim(variants)[1]){
+  j <- i + 250 # Ensembl takes at most 300 requests at a time.
+  if(j > dim(variants)[1]){
+    j = dim(variants)[1]
+  }
+  rest.api.response <- POST(paste(server, ext, sep = ""), content_type("application/json"), accept("application/json"), 
+                            body = paste('{ "hgvs_notations" : [', paste0(gene.of.interest.symbol, ":",  variants$Transcript.Consequence[i:j],
+                                                                          collapse = "\",\""), ' ] }', sep = "\""))
+  
+  rest.api.info <- fromJSON(toJSON(content(rest.api.response)))
+  for(k in 1:length(rest.api.info$transcript_consequences)){
+    extract_ensembl_api_info(k + i - 1,rest.api.info$transcript_consequences[[k]])
+  } 
+  i <- j + 1
+}
 
 ####################################################################
 # You can change the score cutoffs below to match your research needs
@@ -403,8 +419,9 @@ write.csv(variants, file=paste(variants_file_path, variants_file_name, sep=""), 
 ##################
 # Make Plot
 ##################
-
-ensembl <- get0("ensembl", ifnotfound = useEnsembl(biomart="ensembl", dataset="hsapiens_gene_ensembl", GRCh=37)) 
+if(!exists("ensembl")){
+  ensembl <- useEnsembl(biomart="ensembl", dataset="hsapiens_gene_ensembl", GRCh=37)
+}
 ideoTrack <- IdeogramTrack(genome = "hg19", chromosome =  gene.of.interest.ch)
 gene.image <- makeGene(id = gene.of.interest.symbol, type = "hgnc_symbol", biomart = ensembl) 
 genomeAxis <- makeGenomeAxis(add53 = TRUE, add35=TRUE)
@@ -412,3 +429,5 @@ expres <- makeGenericArray(intensity = as.matrix(variants$num.pass), probeStart 
   variants$Position), dp = DisplayPars(type = "dot", lwd = 2, pch = "o")) # shows number of scores passed
 gdPlot(list(Exons=gene.image, "Number of Scores Passed"= expres, "BP" = genomeAxis),
        minBase = gene.of.interest.start, maxBase =gene.of.interest.end, labelCex = 1.5) # plots all 3 images
+
+end_time  <- Sys.time()
