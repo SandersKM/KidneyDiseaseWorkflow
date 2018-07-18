@@ -410,5 +410,5 @@ gene.image <- makeGene(id = gene.of.interest.symbol, type = "hgnc_symbol", bioma
 genomeAxis <- makeGenomeAxis(add53 = TRUE, add35=TRUE)
 expres <- makeGenericArray(intensity = as.matrix(variants$num.pass), probeStart = as.numeric(
   variants$Position), dp = DisplayPars(type = "dot", lwd = 2, pch = "o")) # shows number of scores passed
-gdPlot(list(genomeAxis, Exons=gene.image, "Scores Passed"= expres),
-       minBase = gene.of.interest.start, maxBase =gene.of.interest.end, labelCex = 2) # plots all 3 images
+gdPlot(list(Exons=gene.image, "Number of Scores Passed"= expres, "BP" = genomeAxis),
+       minBase = gene.of.interest.start, maxBase =gene.of.interest.end, labelCex = 1.5) # plots all 3 images
