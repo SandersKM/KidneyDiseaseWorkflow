@@ -53,8 +53,9 @@ gene_file$exon.count <- sapply(gene_file$exon.count, as.numeric)
 gene_file$summary <- extract_from_esummary(gene_file$summary, "summary")
 
 # set up biomart
-ensembl = useEnsembl(biomart="ensembl", dataset="hsapiens_gene_ensembl", GRCh=37)
-
+if(!exists("ensembl")){
+  ensembl = useEnsembl(biomart="ensembl", dataset="hsapiens_gene_ensembl", GRCh=37)
+}
 # get information from biomart
 allBM <- getBM(c("hgnc_symbol","ensembl_gene_id","start_position", "end_position", "strand"), filters="hgnc_symbol", 
                   values=gene_file$name, mart=ensembl)
@@ -232,5 +233,4 @@ write.csv(gene_file, file=paste(gene_file_path, gene_file_name, sep=""), row.nam
 #   return(id)
 # }
 # gene_file$uniprotswissprot<- sapply(1:dim(gene_file)[1], get_uniprotswissprot)
-
 
