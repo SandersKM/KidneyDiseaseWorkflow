@@ -1,6 +1,8 @@
+start_time <- Sys.time()
 library(rvest)
 library(httr)
 library(rentrez)
+library(data.table)
 
 ##########################################
 # Put Disease/Phenotype of interest below
@@ -25,15 +27,20 @@ disease_file$title <- extract_from_esummary(disease_file$summary, "title")
 disease_file$definition <- sapply(extract_from_esummary(disease_file$summary, "definition"), '[', 1)
 disease_file$definition <- unlist(lapply(disease_file$definition, toString))
 disease_file <- disease_file[ , !(names(disease_file) %in% c("summary"))]
+disease_genes <- entrez_link(dbfrom = "medgen", id = disease_file$id, db= 'gene')$links[1]$medgen_gene_diseases
+disease_genes_symbols <- extract_from_esummary(entrez_summary(db="gene", id = disease_genes), c("uid", "name"))
+demo_gene <- entrez_link(dbfrom = "medgen", id = disease_file$id, db= 'gene',by_id = TRUE)
+disease_file$demo_gene <- character(dim(disease_file)[1])
 get_genes <- function(n){
-  links <- entrez_link(dbfrom="medgen", id = disease_file$id[n], db='gene')$links
-  return(links)
+  return(entrez_link(dbfrom="medgen", id = disease_file$id[n], db='gene')$links)
 }
 disease_file$genes <- sapply(1:dim(disease_file)[1], get_genes)
+disease_file$genes_symbol <- character(dim(disease_file)[1])
 make_string_list <- function(n){
   if(length(disease_file$genes[[n]]) == 0){
     return("NULL")
   }
+  disease_file$genes_symbol[n] <<- paste0(unlist(disease_genes_symbols["name",disease_file$genes[[n]]$medgen_gene_diseases]), collapse = "; ") 
   return(paste(disease_file$genes[[n]]$medgen_gene_diseases, collapse="; "))
 }
 # take out diseases without associated genes
@@ -64,13 +71,6 @@ disease_file$inheritance <- unlist(disease_file$inheritance)
 
 write.csv(disease_file, file=paste(disease_file_path, disease_file_name, sep=""), row.names = FALSE)
 
-# Webscraping for inheritance and disease???
-
-# gtr.disease.page <- read_html(paste("https://www.ncbi.nlm.nih.gov/gtr/conditions/", disease_file$conceptid[2], sep = ""))
-# gtr.disease.name <- gtr.disease.page %>% html_node("h1") %>% html_text()
-# gtr.disease.inheritance <- gtr.disease.page %>% html_node("div.grid div.col div.wrap div.page div.container div#maincontent
-#                                                           div.col1 div#gtr_page_cont div#gtr_maincontent div.rprt div.page_header dl dl dd a") %>% html_text()
-# gtr.disease.inheritance <- html_nodes(gtr.disease.page, "dd a")[1] %>% html_text()
-# gtr.disease.summary.long <- gtr.disease.page %>% html_nodes("div.grid div.col div.wrap div.page div.container div#maincontent
-#                                                             div.col1 div#gtr_page_cont div#gtr_maincontent div.rprt div.rprt-section div.rprt-section-body") %>% html_text()
-# gtr.disease.summary <- gtr.disease.summary.long[1]
+# you should go back and add in the names of the related genes. 
+# Also make one excel file with multiple sheets
+end_time <- Sys.time()
