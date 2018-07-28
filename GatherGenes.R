@@ -1,3 +1,4 @@
+start_time <- Sys.time()
 library(rvest)
 library(biomaRt)
 library(rentrez)
@@ -6,40 +7,27 @@ library(TxDb.Hsapiens.UCSC.hg19.knownGene)
 
 # Enter the path you would like the final CSV to be in:
 gene_file_path = "/Users/ksanders/Documents/"
-gene_file_name = paste("genes_",sub(" ", "_",disease.keyword),  ".csv", sep = "")
 
 
-gene_file <- data.frame(geneID = integer(dim(disease_file)[1]), phenotype = character(dim(disease_file)[1]), 
+gene_file <- data.frame(geneID = unique(unlist(strsplit(disease_file$genes, split = "; "))), 
+                        phenotype = character(dim(disease_file)[1]), 
                         stringsAsFactors = FALSE)
-index <- 1
-for(i in 1:dim(disease_file)[1]){
-  spl <- strsplit(disease_file$genes[i], split = "; ")
-  firstid <- as.integer(spl[[1]][1])
-  if(firstid %in% gene_file$geneID){
-    idrow <- which(disease_file$genes == firstid, arr.ind = TRUE)
-    gene_file[idrow, 2] = paste(gene_file[idrow, 2],disease_file$title[i], sep = "; ")
-  }
-  else{
-    gene_file[index, 1] = firstid
-    gene_file[index, 2] = as.character(disease_file$title[i])
-    index <- index + 1
-  } 
-  if(length(spl[[1]]) > 1){
-    for(j in 2:length(spl[[1]])){
-      if(index < i){
-        gene_file[index, 1] = as.integer(spl[[1]][j])
-        gene_file[index, 2] =as.character(disease_file$title[i])
-        index <- index + 1
-      }
-      else{
-        tempdf <- data.frame(geneID = as.integer(spl[[1]][j]), phenotype = disease_file$title[i])
-        gene_file <- rbind(gene_file, tempdf)
-      }
+
+split_gene <- strsplit(disease_file$genes, split = "; ")
+for(i in 1:length(split_gene)){
+  for( j in 1:length(split_gene[[i]])){
+    rownum <- which(gene_file$geneID == split_gene[i][[1]][j])
+    if(gene_file$phenotype[rownum] !=""){
+      gene_file$phenotype[rownum] <- 
+        paste(gene_file$phenotype[rownum],disease_file$title[i],sep = "; ")
+    }
+    else{
+      gene_file$phenotype[rownum] <- disease_file$title[i]
     }
   }
 }
 gene_file <- gene_file[!gene_file$geneID == 0,]
-rm(tempdf)
+
 
 gene_file$summary <- entrez_summary(db="gene", id =gene_file$geneID)
 gene_file$name <- extract_from_esummary(gene_file$summary, "name")
@@ -221,16 +209,27 @@ gene_file$gnomAD.website <- unlist(gene_file$gnomAD.website)
 #                                     db="all")$links$gene_clinvar_specific))
 # })
 
-###################
-# Write to CV
-###################
+#################
+# Write to file
+#################
 
-write.csv(gene_file, file=paste(gene_file_path, gene_file_name, sep=""), row.names = FALSE)
+if(!exists(disease_file_path)){
+  if(!exists(disease.keyword)){
+    disease.keyword <- "?"
+  }
+  disease_file_path <-  paste("Mendelian_Pipeline_",sub(" ", "_", disease.keyword), sep = "")
+}
 
-# UniProt/swissprot
-# get_uniprotswissprot <- function(n){
-#   id <- getBM("uniprotswissprot", filters="hgnc_symbol", values=gene_file$name[n], mart=ensembl)
-#   return(id)
-# }
-# gene_file$uniprotswissprot<- sapply(1:dim(gene_file)[1], get_uniprotswissprot)
+# Write results to csv
+if(write_to_csv){
+  write.csv(gene_file, file=paste(disease_file_path, disease_file_name, "_genes", ".csv", sep=""), row.names = FALSE)
+}
+if(write_to_tsv){
+  write.table(gene_file, file = paste(disease_file_path, disease_file_name, "_genes",".txt", sep=""), sep = "\t", row.names = FALSE)
+}
+if(write_to_excel){
+  write.xlsx2(gene_file, file=paste(disease_file_path, disease_file_name, ".xlsx", sep=""), sheetName = "Genes", row.names = FALSE)
+}
+k<- disease_file_path
 
+end_time <- Sys.time()
