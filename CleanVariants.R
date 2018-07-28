@@ -165,6 +165,12 @@ citation(fitcon) # the citation for the genomic scores
 fitCon.scores <- scores(fitCons.UCSC.hg19, gr)
 variants$fitCon.score <- fitCon.scores[variants$distance.from.start]$scores
 
+# This is to get the position of the scores for GScores where there are multiple allele options
+alleles <- c("A", "C", "G", "T")
+variants$temp <- sapply(1:dim(variants)[1], function(n){
+  which(alleles[which(alleles != variants$Reference[n])] == variants$Alternate[n])[1]
+})
+
 # cadd.v1.3.hg19 - fitCons scores measure the fitness consequences of function annotation for the 
 # human genome (hg19)
 # These scores are rounded to provide faster lookup
@@ -172,50 +178,77 @@ if (!exists("cadd")){
   cadd <- getGScores("cadd.v1.3.hg19")
 }
 citation(cadd) # the citation for the genomic scores
-# used to get the cadd score for each variant in the table
 
-# first construct granges and try to call score function only once
-
-
-get_cadd_score <- function(n){
-  if(variants$Annotation[n] != "missense"){
-    return(NA)
-  } 
-  return(scores(cadd,GRanges(seqnames=gene.of.interest.ch,IRanges(
-    start=variants$Position[n]:variants$Position[n], width=1)), ref=as.character(variants$Reference[n]),
-    alt=as.character(variants$Alternate[n]))$scores)
-}
-variants$cadd.score <- sapply(1:dim(variants)[1], get_cadd_score)
-
+cadd.scores <- scores(cadd, gr)
+variants$cadd.score <- sapply(1:dim(variants)[1], function(n){
+  if(is.na(variants$temp[n])){return(NULL)}
+  if(variants$temp[n] == 1){
+    return(cadd.scores[variants$distance.from.start[n]]$scores1[1])
+  }
+  if(variants$temp[n] == 2){
+    return(cadd.scores[variants$distance.from.start[n]]$scores2[1])
+    }
+  if(variants$temp[n] == 3){
+    return(cadd.scores[variants$distance.from.start[n]]$scores3[1])
+    }
+})
+variants$cadd.score <- lapply(variants$cadd.score , toString)
+variants$cadd.score <- unlist(variants$cadd.score)
+variants$cadd.score <- lapply(variants$cadd.score, as.integer)
 
 # get mcap scores
 if (!exists("mcap")){
   mcap <- getGScores("mcap.v1.0.hg19")
 }
 citation(mcap) # the citation for the genomic scores
-# used to get the mcap score for each variant in the table
-get_mcap_score <- function(n){
-  if(variants$Annotation[n] != "missense"){
-    return(NA)
-  } 
-  return(scores(mcap,GRanges(seqnames=gene.of.interest.ch,IRanges(
-    start=variants$Position[n]:variants$Position[n], width=1)), ref=as.character(variants$Reference[n]),
-    alt=as.character(variants$Alternate[n]))$scores)
-}
 
-variants$mcap.score <- sapply(1:dim(variants)[1], get_mcap_score)
+mcap.scores <- scores(mcap, gr)
+variants$mcap.score <- sapply(1:dim(variants)[1], function(n){
+  if(is.na(variants$temp[n])){return(NULL)}
+  if(variants$temp[n] == 1){
+    return(mcap.scores[variants$distance.from.start[n]]$scores1[1])
+  }
+  if(variants$temp[n] == 2){
+    return(mcap.scores[variants$distance.from.start[n]]$scores2[1])
+  }
+  if(variants$temp[n] == 3){
+    return(mcap.scores[variants$distance.from.start[n]]$scores3[1])
+  }
+})
+variants$mcap.score <- lapply(variants$mcap.score , toString)
+variants$mcap.score <- unlist(variants$mcap.score)
+variants$mcap.score <- lapply(variants$mcap.score, as.numeric)
 
 ##########################################
 # Extracting scores from Ensembl Rest API
 ##########################################
 
-variants$polyphen.score <- numeric(dim(variants)[1])
+variants$polyphen.score <- character(dim(variants)[1])
 variants$polyphen.prediction <- character(dim(variants)[1])
-variants$sift.score <- numeric(dim(variants)[1])
+variants$sift.score <- character(dim(variants)[1])
 variants$sift.prediction <- character(dim(variants)[1])
 variants$biotype <- character(dim(variants)[1])
 variants$consequences.all <- character(dim(variants)[1])
 variants$impact.all <- character(dim(variants)[1])
+
+extract_ensembl_api_info_transcript <- function(n, rest.api.info){
+  info <- rest.api.info[rest.api.info$gene_symbol == gene.of.interest.symbol,]
+  variants$polyphen.score[n] <<- mean(unlist(info$polyphen_score))
+  variants$polyphen.prediction[n] <<- list_factors_pretty(info$polyphen_prediction)
+  variants$sift.score[n] <<- mean(unlist(info$sift_score))
+  variants$sift.prediction[n] <<- list_factors_pretty(info$sift_prediction)
+  variants$biotype[n] <<- list_factors_pretty(info$biotype)
+  variants$consequences.all[n] <<- list_factors_pretty(info$consequence_terms)
+  variants$impact.all[n] <<- list_factors_pretty(info$impact)
+}
+
+variants$polyphen.score.transcript <- character(dim(variants)[1])
+variants$polyphen.prediction.transcript <- character(dim(variants)[1])
+variants$sift.score.transcript <- character(dim(variants)[1])
+variants$sift.prediction.transcript <- character(dim(variants)[1])
+variants$biotype.transcript <- character(dim(variants)[1])
+variants$consequences.all.transcript <- character(dim(variants)[1])
+variants$impact.all.transcript <- character(dim(variants)[1])
 
 list_factors_pretty <- function(x){
   unique_factors <- unique(unlist(x))
@@ -228,9 +261,9 @@ list_factors_pretty <- function(x){
 
 extract_ensembl_api_info <- function(n, rest.api.info){
   info <- rest.api.info[rest.api.info$gene_symbol == gene.of.interest.symbol,]
-  variants$polyphen.score[n] <<- mean(as.numeric(unlist(info$polyphen_score)))
+  variants$polyphen.score[n] <<- mean(unlist(info$polyphen_score))
   variants$polyphen.prediction[n] <<- list_factors_pretty(info$polyphen_prediction)
-  variants$sift.score[n] <<- mean(as.numeric(unlist(info$sift_score)))
+  variants$sift.score[n] <<- mean(unlist(info$sift_score))
   variants$sift.prediction[n] <<- list_factors_pretty(info$sift_prediction)
   variants$biotype[n] <<- list_factors_pretty(info$biotype)
   variants$consequences.all[n] <<- list_factors_pretty(info$consequence_terms)
@@ -252,9 +285,13 @@ while(i < dim(variants)[1]){
   rest.api.info <- fromJSON(toJSON(content(rest.api.response)))
   for(k in 1:length(rest.api.info$transcript_consequences)){
     extract_ensembl_api_info(k + i - 1,rest.api.info$transcript_consequences[[k]])
+    extract_ensembl_api_info_transcript(k + i - 1,rest.api.info$transcript_consequences[[k]])
   } 
   i <- j + 1
 }
+
+variants$polyphen.score <- as.numeric(variants$polyphen.score)
+variants$sift.score <- as.numeric(variants$sift.score)
 
 ####################################################################
 # You can change the score cutoffs below to match your research needs
@@ -391,7 +428,7 @@ variants$num.fail <- sapply(1:dim(variants)[1], function(n){overall_score_lists[
 variants$num.na <- sapply(1:dim(variants)[1], function(n){overall_score_lists[[n]][3]})
 
 # Erase unneeded rows
-variants <- variants[ , !(names(variants) %in% c("rest.api.url", "rest.api.info", "source", "distance.from.start",
+variants <- variants[ , !(names(variants) %in% c("rest.api.url", "rest.api.info", "source", "distance.from.start", "temp",
                                                  "rest.api.transcript.consequences","Consequence", "Filters...exomes", "Filters...genomes"))]
 
 # sort variants by the number of scores that passed cutoffs
