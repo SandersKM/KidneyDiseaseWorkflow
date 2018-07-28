@@ -9,9 +9,11 @@ library(TxDb.Hsapiens.UCSC.hg19.knownGene)
 gene_file_path = "/Users/ksanders/Documents/"
 
 
-gene_file <- data.frame(geneID = unique(unlist(strsplit(disease_file$genes, split = "; "))), 
-                        phenotype = character(dim(disease_file)[1]), 
-                        stringsAsFactors = FALSE)
+gene_file <- data.frame(geneID = unique(unlist(strsplit(disease_file$genes, split = "; "))), stringsAsFactors = FALSE)
+gene_file$name <- character(dim(gene_file)[1])
+gene_file$ensembl_gene_id <- character(dim(gene_file)[1])
+gene_file$mim <- numeric(dim(gene_file)[1])
+gene_file$phenotype <- character(dim(gene_file)[1])
 
 split_gene <- strsplit(disease_file$genes, split = "; ")
 for(i in 1:length(split_gene)){
@@ -28,6 +30,9 @@ for(i in 1:length(split_gene)){
 }
 gene_file <- gene_file[!gene_file$geneID == 0,]
 
+####################
+# Entrez Gene Search
+####################
 
 gene_file$summary <- entrez_summary(db="gene", id =gene_file$geneID)
 gene_file$name <- extract_from_esummary(gene_file$summary, "name")
@@ -35,26 +40,38 @@ gene_file$description <- extract_from_esummary(gene_file$summary, "description")
 gene_file$chromosome <- extract_from_esummary(gene_file$summary, "chromosome")
 gene_file$map.location <- extract_from_esummary(gene_file$summary, "maplocation")
 gene_file$mim <- extract_from_esummary(gene_file$summary, "mim")
-gene_file$exon.count <- sapply(1:dim(gene_file)[1], function(x){as.integer(extract_from_esummary(
-  gene_file$summary,"genomicinfo")[[x]]$exoncount)})
-gene_file$exon.count <- sapply(gene_file$exon.count, as.numeric)
 gene_file$summary <- extract_from_esummary(gene_file$summary, "summary")
 
-# set up biomart
-if(!exists("ensembl")){
-  ensembl = useEnsembl(biomart="ensembl", dataset="hsapiens_gene_ensembl", GRCh=37)
+######################
+# Ensembl Gene Search 
+######################
+
+gene_file$start_position <- numeric(dim(gene_file)[1])
+gene_file$end_position <- numeric(dim(gene_file)[1])
+gene_file$strand <- numeric(dim(gene_file)[1])
+gene_file$cannonical_transcript <- character(dim(gene_file)[1])
+gene_file$exon <- character(dim(gene_file)[1])
+get_ensembl_info <- function(n){
+  try({
+    api.response <- fromJSON(paste("http://grch37.rest.ensembl.org/lookup/symbol/homo_sapiens/", gene_file$name[n],
+                                   "?content-type=application/json;expand=1", sep = ""))
+    gene_file$ensembl_gene_id[n] <<- api.response$id
+    gene_file$start_position[n] <<- api.response$start
+    gene_file$end_position[n] <<- api.response$end
+    gene_file$strand[n] <<- api.response$strand
+    transcripts <- as.data.frame(api.response)
+    canonical.rownum <- which(transcripts$Transcript.is_canonical == 1)
+    gene_file$cannonical_transcript[n] <<- transcripts$Transcript.id[canonical.rownum]
+    gene_file$exon[n] <<- paste0(transcripts$Transcript.Exon[canonical.rownum][[1]]$start, " : ",
+                                 transcripts$Transcript.Exon[canonical.rownum][[1]]$end, collapse = "; ")
+  }, silent = TRUE)
 }
-# get information from biomart
-allBM <- getBM(c("hgnc_symbol","ensembl_gene_id","start_position", "end_position", "strand"), filters="hgnc_symbol", 
-                  values=gene_file$name, mart=ensembl)
-# merge rows where 1 hgnc symbol has >1 ensembl ID
-allBM <- aggregate(allBM[,-1], list(allBM[,1]), function(x) paste0(unique(x), collapse = "; "))
-names(allBM)[names(allBM) == 'Group.1'] <- "name"
-# merge the biomart results with the gene file
-gene_file = merge(x = gene_file, y = allBM, by="name",all.x=T, all.y = F)
+sapply(1:dim(gene_file)[1], get_ensembl_info)
 
-
+###############################################################################
 # Web scrapping on Human Protein Atlas for protein/rna expression data in kidney
+###############################################################################
+
 # If you are not looking at kidney disease, this can be easily modified. 
 gene_file$hpa.url <- sapply(gene_file$ensembl_gene_id, function(x){
   if(!is.logical(x)){
@@ -133,22 +150,6 @@ gene_file$hpa.protein.tubules <- unlist(gene_file$hpa.protein.tubules)
 gene_file <- gene_file[ , !(names(gene_file) %in% c("page", "hpa.rna.expression",
                                                     "hpa.protein.expression"))]
 
-gene_file$cannonical_transcript <- character(dim(gene_file)[1])
-gene_file$exon <- character(dim(gene_file)[1])
-get_exons <- function(n){
-  print(gene_file$name[n])
-  try({
-    transcripts <- as.data.frame(fromJSON(paste("http://grch37.rest.ensembl.org/lookup/symbol/homo_sapiens/", gene_file$name[n],
-                                                "?content-type=application/json;expand=1", sep = "")))
-    canonical.rownum <- which(transcripts$Transcript.is_canonical == 1)
-    gene_file$cannonical_transcript[n] <<- transcripts$Transcript.id[canonical.rownum]
-    gene_file$exon[n] <<- paste0(transcripts$Transcript.Exon[canonical.rownum][[1]]$start, " : ",
-                             transcripts$Transcript.Exon[canonical.rownum][[1]]$end, collapse = "; ")
-    })
-}
-
-sapply(1:dim(gene_file)[1], get_exons)
-
 get_gnomad_website_gene <- function(n){
   if(class(gene_file$ensembl_gene_id[[n]]) != "logical"){
     base_url <- "http://gnomad.broadinstitute.org/gene/"
@@ -157,7 +158,7 @@ get_gnomad_website_gene <- function(n){
   }
   return(NULL)
 }
-gene_file$gnomAD.website <- sapply(1:dim(gene_file)[1], get_gnomad_website_gene)
+gene_file$gnomAD.website <- sapply(1:dim(gene_file)[1], suppressWarnings(get_gnomad_website_gene))
 gene_file$gnomAD.website <- lapply(gene_file$gnomAD.website, toString)
 gene_file$gnomAD.website <- unlist(gene_file$gnomAD.website)
 
