@@ -1,3 +1,4 @@
+start_time <- Sys.time()
 # Uncomment and run the following lines.
 # It will take a few minutes, so be patient
 # source("https://bioconductor.org/biocLite.R")
@@ -9,9 +10,7 @@ suppressPackageStartupMessages(library(GenomicScores))
 suppressPackageStartupMessages(library(phastCons100way.UCSC.hg19))
 suppressPackageStartupMessages(library(fitCons.UCSC.hg19))
 suppressPackageStartupMessages(library(BSgenome.Hsapiens.UCSC.hg19))
-
 library(RISmed)
-library(gwascat)
 library(jsonlite)
 library(rentrez)
 library(httr)
@@ -29,24 +28,24 @@ gene.of.interest.symbol <- "MUC1"
 variants_file_path = "/Users/ksanders/Documents/"
 variants_file_name = paste("variants_", gene.of.interest.symbol, ".csv", sep = "")
 
-
-
-
-
 # function to get rid of variants flagged with "LC LoF" or "SEGDUP" or with low and modifier annotations
-low_annotations <- c("splice region","synonymous","3' UTR","5' UTR","downstream gene","intron","upstream gene",
+unwanted_annotations <- c("splice region","synonymous","3' UTR","5' UTR","downstream gene","intron","upstream gene",
                      "non coding transcript exon")
+unwanted_flags <- c("SEGDUP", "LC LoF")
 
-clean <- function(n){
-  if(variants$Annotation[n] %in% low_annotations){
+
+clean <- function(n, unwanted_annotations, unwanted_flags){
+  if(variants$Annotation[n] %in% unwanted_annotations){
     return(FALSE)
   }
-  if(variants$Flags[n] != ""){
-    return(FALSE)
+  if(length(unwanted_flags) > 0 ){
+    if(variants$Flags[n] %in% unwanted_flags | variants$Flags[n] == "SEGDUP LC LoF"){
+      return(FALSE)
+    }
   }
   return(TRUE)
 }
-variants$clean <- sapply(1:dim(variants)[1], clean)
+variants$clean <- sapply(1:dim(variants)[1], clean, unwanted_annotations = unwanted_annotations, unwanted_flags = unwanted_flags)
 variants <- variants[!(variants$clean == FALSE),]
 variants <- variants[ , !(names(variants) %in% c("clean", "Flags"))]
 
@@ -189,6 +188,10 @@ if (!exists("cadd")){
 }
 citation(cadd) # the citation for the genomic scores
 # used to get the cadd score for each variant in the table
+
+# first construct granges and try to call score function only once
+
+
 get_cadd_score <- function(n){
   if(variants$Annotation[n] != "missense"){
     return(NA)
@@ -214,7 +217,6 @@ get_mcap_score <- function(n){
     start=variants$Position[n]:variants$Position[n], width=1)), ref=as.character(variants$Reference[n]),
     alt=as.character(variants$Alternate[n]))$scores)
 }
-
 
 variants$mcap.score <- sapply(1:dim(variants)[1], get_mcap_score)
 
