@@ -51,10 +51,21 @@ variants <- variants[ , !(names(variants) %in% c("clean", "Flags"))]
 
 # sort variants by position and get the position offset of each
 
-gene.of.interest.row <- which(gene_file$name == gene.of.interest.symbol)
-gene.of.interest.start <- as.numeric(strsplit(gene_file$start_position[gene.of.interest.row][[1]], split = "; ")[[1]][1])
-gene.of.interest.end <- as.numeric(strsplit(gene_file$end_position[gene.of.interest.row][[1]], split = "; ")[[1]][1])
-gene.of.interest.ch <- paste("chr",gene_file$chromosome[gene.of.interest.row],sep = "")
+try({
+  api.response <- fromJSON(paste("http://grch37.rest.ensembl.org/lookup/symbol/homo_sapiens/", gene.of.interest.symbol,
+                                 "?content-type=application/json;expand=1", sep = ""))
+  gene.of.interest.ensembl_gene_id <- api.response$id
+  gene.of.interest.start <- api.response$start
+  gene.of.interest.end <- api.response$end
+  gene.of.interest.strand <- api.response$strand
+  gene.of.interest.ch <- api.response$seq_region_name
+  transcripts <- as.data.frame(api.response)
+  canonical.rownum <- which(transcripts$Transcript.is_canonical == 1)
+  gene.of.interest.cannonical_transcript <- transcripts$Transcript.id[canonical.rownum]
+  gene.of.interest.exon <- cbind(transcripts$Transcript.Exon[canonical.rownum][[1]]$start, 
+                               transcripts$Transcript.Exon[canonical.rownum][[1]]$end)
+}, silent = TRUE)
+
 variants <- variants[order(variants$Position),]
 # used to get the row number of the scores
 get_position_offset <- function(n){
@@ -64,37 +75,28 @@ get_position_offset <- function(n){
 variants$distance.from.start <- sapply(1:dim(variants)[1], get_position_offset)
 
 # find the cannonical exon (if any) each variant falls into
-exon_regions <- strsplit(gene_file$exon[gene.of.interest.row][[1]], split = "; ")[[1]]
-exon_regions <- lapply(exon_regions, function(x){substring(x, first = (as.integer(regexpr(":",x)[1])) + 1) })
-exon_regions <- sapply(exon_regions, strsplit, split="-")
-exon_regions <- sapply(exon_regions, as.numeric)
-# correcting for different orientations
-if(exon_regions[1,1] < exon_regions[2, length(exon_regions[1,])]){
-  exon_regions <- exon_regions[,c(length(exon_regions[1,]):1)]
-}
 
 get_variant_exon <- function(position){
   closest_exon <- 0
-  exon_dist <- abs(position - exon_regions[1,1])
+  exon_dist <- abs(position - gene.of.interest.exon[1,1])
   symb <- "+"
-  for(i in 1:length(exon_regions[1,])){
-    if((position >= exon_regions[1,i]) && (position <= exon_regions[2,i])){
+  for(i in 1:length(gene.of.interest.exon[,1])){
+    if((position >= gene.of.interest.exon[i, 1]) && (position <= gene.of.interest.exon[i,2])){
       return(i)
     }
-    if(abs(position - exon_regions[1,i]) < exon_dist){
+    if(abs(position - gene.of.interest.exon[i, 1]) < exon_dist){
       closest_exon <- i
-      exon_dist <- abs(position - exon_regions[1,i])
+      exon_dist <- abs(position - gene.of.interest.exon[i,2])
       symb <- "+"
     }
-    if(abs(position - exon_regions[2,i]) < exon_dist){
+    if(abs(position - gene.of.interest.exon[i,2]) < exon_dist){
       closest_exon <- i
-      exon_dist <- abs(position - exon_regions[2,i])
+      exon_dist <- abs(position - gene.of.interest.exon[i,2])
       symb <- "-"
     }
   }
   return(paste(closest_exon, symb, exon_dist, sep = ""))
 }
-
 variants$exon <- sapply(variants$Position,get_variant_exon)
 
 # functions to get the ancestry of each variant in a nice format
@@ -153,32 +155,15 @@ gr <- GRanges(seqnames=gene.of.interest.ch,
 
 # phastCons100way.UCSC.hg19 - phastCon scores are derived from the alignment of the human genome (hg19)
 # and 99 other vertabrate species
-
-if(!exists("gsco")){
-  gsco <- phastCons100way.UCSC.hg19
-}
 citation(gsco) # the citation for the genomic scores
-phastCon.scores <- scores(gsco, gr)
-
-# used to get the phastCon score for each variant in the table
-get_phastCon_score <- function(n){
-  return(phastCon.scores[variants$distance.from.start[n]]$scores)
-}
-variants$phastCon.score <- sapply(1:dim(variants)[1], get_phastCon_score)
+phastCon.scores <- scores(phastCons100way.UCSC.hg19, gr)
+variants$phastCon.score <- phastCon.scores[variants$distance.from.start]$scores
 
 # fitCons.UCSC.hg19 - fitCons scores measure the fitness consequences of function annotation for the 
 # human genome (hg19)
-
-if(!exists("fitcon")){
-  fitcon <- fitCons.UCSC.hg19
-}
 citation(fitcon) # the citation for the genomic scores
-fitCon.scores <- scores(fitcon, gr)
-# used to get the fitCon score for each variant in the table
-get_fitCon_score <- function(n){
-  return(fitCon.scores[variants$distance.from.start[n]]$scores)
-}
-variants$fitCon.score <- sapply(1:dim(variants)[1], get_fitCon_score)
+fitCon.scores <- scores(fitCons.UCSC.hg19, gr)
+variants$fitCon.score <- fitCon.scores[variants$distance.from.start]$scores
 
 # cadd.v1.3.hg19 - fitCons scores measure the fitness consequences of function annotation for the 
 # human genome (hg19)
