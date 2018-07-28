@@ -133,51 +133,21 @@ gene_file$hpa.protein.tubules <- unlist(gene_file$hpa.protein.tubules)
 gene_file <- gene_file[ , !(names(gene_file) %in% c("page", "hpa.rna.expression",
                                                     "hpa.protein.expression"))]
 
-# Web scrapping to get gene structure exons 
-# let me know if you also want UTRs
-# TODO get orientation and GeneBankID to make sure exons are standard
-gene_file$rcsb.url <- sapply(gene_file$name, function(x){
-  paste("http://www.rcsb.org/pdb/gene/",x,"?v=hg19", sep = "")
-}) 
-gene_file$rcsb.page <- lapply(gene_file$rcsb.url, function(x){
-  read_html(x)
-})
-gene_file$rcsb.genestructure.txt <- sapply(gene_file$rcsb.page, function(x){ 
-  tryCatch({
-    x %>% 
-      html_nodes("body div.container table.table.table-hover tr td") %>% 
-      html_text()
-  },
-           error = function(e){
-             return(NULL)})
-  })
-
+gene_file$cannonical_transcript <- character(dim(gene_file)[1])
+gene_file$exon <- character(dim(gene_file)[1])
 get_exons <- function(n){
-  if(length(gene_file$rcsb.genestructure.txt) > 0){
-    txt <- gene_file$rcsb.genestructure.txt[n]
-    txt <- txt[[1]]
-    exons <- ""
-    i <- 1
-    e <- 1
-    while(i <= length(txt)){
-      if("Exon" %in% txt[i]){
-        exons <- paste(exons, e, ":", gsub(",", "", txt[i + 1], fixed = TRUE), 
-                       "-",gsub(",", "", txt[i + 2], fixed = TRUE), "; ", sep = "")
-        i <- i + 3
-        e <- e + 1
-      }
-      else{
-        i <- i + 1
-      }
-    }
-    return(exons[!sapply(exons, is.null)])
-  }
-  else{return("")}
-  
+  print(gene_file$name[n])
+  try({
+    transcripts <- as.data.frame(fromJSON(paste("http://grch37.rest.ensembl.org/lookup/symbol/homo_sapiens/", gene_file$name[n],
+                                                "?content-type=application/json;expand=1", sep = "")))
+    canonical.rownum <- which(transcripts$Transcript.is_canonical == 1)
+    gene_file$cannonical_transcript[n] <<- transcripts$Transcript.id[canonical.rownum]
+    gene_file$exon[n] <<- paste0(transcripts$Transcript.Exon[canonical.rownum][[1]]$start, " : ",
+                             transcripts$Transcript.Exon[canonical.rownum][[1]]$end, collapse = "; ")
+    })
 }
-gene_file$exon <- sapply(1:dim(gene_file)[1], get_exons)
-gene_file <- gene_file[ , !(names(gene_file) %in% c("exon.count", "rcsb.genestructure.txt", "rcsb.page"))]
 
+sapply(1:dim(gene_file)[1], get_exons)
 
 get_gnomad_website_gene <- function(n){
   if(class(gene_file$ensembl_gene_id[[n]]) != "logical"){
