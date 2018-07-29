@@ -21,7 +21,7 @@ library(Gviz)
 # download the variant CSV from the gnomAD browser for the 
 # gene of interest. Write the path file below
 all_variants_path <- "/Users/ksanders/Downloads/gnomad_ENSG00000185499_2018_07_10_08_45_10.csv"
-variants <- read.csv(all_variants_path, header = TRUE, sep=",")
+variants <- read.csv(all_variants_path, header = TRUE, sep=",", stringsAsFactors = FALSE)
 # Change the symbol to correspond to the gene of interest
 gene.of.interest.symbol <- "MUC1"
 # Enter the path you would like the final CSV to be in:
@@ -65,14 +65,6 @@ try({
   gene.of.interest.exon <- cbind(transcripts$Transcript.Exon[canonical.rownum][[1]]$start, 
                                transcripts$Transcript.Exon[canonical.rownum][[1]]$end)
 }, silent = TRUE)
-
-variants <- variants[order(variants$Position),]
-# used to get the row number of the scores
-get_position_offset <- function(n){
-  offset <- variants$Position[n] - gene.of.interest.start + 1
-  return(offset)
-}
-variants$distance.from.start <- sapply(1:dim(variants)[1], get_position_offset)
 
 # find the cannonical exon (if any) each variant falls into
 
@@ -149,6 +141,15 @@ variants$gnomAD.website <- sapply(1:dim(variants)[1], get_gnomAD_website)
 #################################
 # Get Genomic Scores
 #################################
+
+variants <- variants[order(variants$Position),]
+# used to get the row number of the scores
+get_position_offset <- function(n){
+  offset <- variants$Position[n] - gene.of.interest.start + 1
+  return(offset)
+}
+variants$distance.from.start <- sapply(1:dim(variants)[1], get_position_offset)
+
 
 gr <- GRanges(seqnames=gene.of.interest.ch,
               IRanges(start=gene.of.interest.start:gene.of.interest.end, width=1))
@@ -227,54 +228,68 @@ variants$polyphen.score <- character(dim(variants)[1])
 variants$polyphen.prediction <- character(dim(variants)[1])
 variants$sift.score <- character(dim(variants)[1])
 variants$sift.prediction <- character(dim(variants)[1])
-variants$biotype <- character(dim(variants)[1])
 variants$consequences.all <- character(dim(variants)[1])
 variants$impact.all <- character(dim(variants)[1])
 
-extract_ensembl_api_info_transcript <- function(n, rest.api.info){
-  info <- rest.api.info[rest.api.info$gene_symbol == gene.of.interest.symbol,]
-  variants$polyphen.score[n] <<- mean(unlist(info$polyphen_score))
-  variants$polyphen.prediction[n] <<- list_factors_pretty(info$polyphen_prediction)
-  variants$sift.score[n] <<- mean(unlist(info$sift_score))
-  variants$sift.prediction[n] <<- list_factors_pretty(info$sift_prediction)
-  variants$biotype[n] <<- list_factors_pretty(info$biotype)
-  variants$consequences.all[n] <<- list_factors_pretty(info$consequence_terms)
-  variants$impact.all[n] <<- list_factors_pretty(info$impact)
-}
+extract_ensembl_api_info <- function(input, rest.info){
+  n <- which(variants$Transcript.Consequence == input)
+  info <- rest.info[rest.info$gene_symbol == gene.of.interest.symbol &
+                      rest.info$transcript_id == gene.of.interest.cannonical_transcript,]
 
-variants$polyphen.score.transcript <- character(dim(variants)[1])
-variants$polyphen.prediction.transcript <- character(dim(variants)[1])
-variants$sift.score.transcript <- character(dim(variants)[1])
-variants$sift.prediction.transcript <- character(dim(variants)[1])
-variants$biotype.transcript <- character(dim(variants)[1])
-variants$consequences.all.transcript <- character(dim(variants)[1])
-variants$impact.all.transcript <- character(dim(variants)[1])
-
-list_factors_pretty <- function(x){
-  unique_factors <- unique(unlist(x))
-  factor_string <- ""
-  for(factor in unique_factors){
-    factor_string <- paste(factor_string, factor, " (", sum(x == factor), "); ", sep = "")
+  if( "polyphen_prediction" %in% colnames(info)){
+    variants$polyphen.prediction[n] <<- info$polyphen_prediction
   }
-  return(factor_string)
+  if( "sift_prediction" %in% colnames(info)){
+    variants$sift.prediction[n] <<- info$sift_prediction
+  }
+  if( "polyphen_score" %in% colnames(info)){
+    variants$polyphen.score[n] <<- info$polyphen_score
+  }
+  if( "sift_score" %in% colnames(info)){
+    variants$sift.score[n] <<- info$sift_score
+  }
+  if("consequence_terms" %in% colnames(info)){
+    variants$consequences.all[n] <<- info$consequence_terms
+  }  
+  if("impact" %in% colnames(info)){
+    variants$impact.all[n] <<- info$impact
+  }
 }
 
-extract_ensembl_api_info <- function(n, rest.api.info){
-  info <- rest.api.info[rest.api.info$gene_symbol == gene.of.interest.symbol,]
-  variants$polyphen.score[n] <<- mean(unlist(info$polyphen_score))
-  variants$polyphen.prediction[n] <<- list_factors_pretty(info$polyphen_prediction)
-  variants$sift.score[n] <<- mean(unlist(info$sift_score))
-  variants$sift.prediction[n] <<- list_factors_pretty(info$sift_prediction)
-  variants$biotype[n] <<- list_factors_pretty(info$biotype)
-  variants$consequences.all[n] <<- list_factors_pretty(info$consequence_terms)
-  variants$impact.all[n] <<- list_factors_pretty(info$impact)
-}
+
+
+# variants$polyphen.score.transcript <- character(dim(variants)[1])
+# variants$polyphen.prediction.transcript <- character(dim(variants)[1])
+# variants$sift.score.transcript <- character(dim(variants)[1])
+# variants$sift.prediction.transcript <- character(dim(variants)[1])
+# variants$consequences.all.transcript <- character(dim(variants)[1])
+# variants$impact.all.transcript <- character(dim(variants)[1])
+
+# list_factors_pretty <- function(x){
+#   unique_factors <- unique(unlist(x))
+#   factor_string <- ""
+#   for(factor in unique_factors){
+#     factor_string <- paste(factor_string, factor, " (", sum(x == factor), "); ", sep = "")
+#   }
+#   return(factor_string)
+# }
+
+# extract_ensembl_api_info <- function(n, rest.info){
+#   info <- rest.info[rest.info$gene_symbol == gene.of.interest.symbol,]
+#   variants$polyphen.score[n] <<- mean(unlist(info$polyphen_score))
+#   variants$polyphen.prediction[n] <<- list_factors_pretty(info$polyphen_prediction)
+#   variants$sift.score[n] <<- mean(unlist(info$sift_score))
+#   variants$sift.prediction[n] <<- list_factors_pretty(info$sift_prediction)
+#   variants$biotype[n] <<- list_factors_pretty(info$biotype)
+#   variants$consequences.all[n] <<- list_factors_pretty(info$consequence_terms)
+#   variants$impact.all[n] <<- list_factors_pretty(info$impact)
+# }
 
 server <- "http://grch37.rest.ensembl.org"
 ext <- "/vep/human/hgvs"
 i <- 1
 while(i < dim(variants)[1]){
-  j <- i + 250 # Ensembl takes at most 300 requests at a time.
+  j <- i + 290 # Ensembl takes at most 300 requests at a time.
   if(j > dim(variants)[1]){
     j = dim(variants)[1]
   }
@@ -284,14 +299,20 @@ while(i < dim(variants)[1]){
   
   rest.api.info <- fromJSON(toJSON(content(rest.api.response)))
   for(k in 1:length(rest.api.info$transcript_consequences)){
-    extract_ensembl_api_info(k + i - 1,rest.api.info$transcript_consequences[[k]])
-    extract_ensembl_api_info_transcript(k + i - 1,rest.api.info$transcript_consequences[[k]])
+    extract_ensembl_api_info(strsplit(rest.api.info$input[[k]],split = ":")[[1]][2],rest.api.info$transcript_consequences[[k]])
   } 
   i <- j + 1
 }
 
-variants$polyphen.score <- as.numeric(variants$polyphen.score)
-variants$sift.score <- as.numeric(variants$sift.score)
+
+variants$cadd.score <- unlist(variants$cadd.score)
+variants$mcap.score <- unlist(variants$mcap.score)
+variants$polyphen.score <- as.numeric(unlist(lapply(variants$polyphen.score, toString)))
+variants$sift.score <- as.numeric(unlist(lapply(variants$sift.score, toString)))
+variants$impact.all <- unlist(lapply(variants$impact.all, toString))
+variants$consequences.all <- unlist(lapply(variants$consequences.all, toString))
+variants$sift.prediction <- unlist(lapply(variants$sift.prediction, toString))
+variants$polyphen.prediction <- unlist(lapply(variants$polyphen.prediction, toString))
 
 ####################################################################
 # You can change the score cutoffs below to match your research needs
