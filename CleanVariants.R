@@ -225,8 +225,8 @@ variants$mcap.score <- lapply(variants$mcap.score, as.numeric)
 ##########################################
 
 variants$polyphen.score <- character(dim(variants)[1])
-variants$polyphen.prediction <- character(dim(variants)[1])
 variants$sift.score <- character(dim(variants)[1])
+variants$polyphen.prediction <- character(dim(variants)[1])
 variants$sift.prediction <- character(dim(variants)[1])
 variants$consequences.all <- character(dim(variants)[1])
 variants$impact.all <- character(dim(variants)[1])
