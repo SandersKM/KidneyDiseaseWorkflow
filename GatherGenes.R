@@ -1,9 +1,9 @@
 start_time <- Sys.time()
 library(rvest)
-library(biomaRt)
 library(rentrez)
-suppressPackageStartupMessages(library(GenomicFeatures))
-library(TxDb.Hsapiens.UCSC.hg19.knownGene)
+library(jsonlite)
+library(magrittr)
+library(rvest)
 
 # Enter the path you would like the final CSV to be in:
 gene_file_path = "/Users/ksanders/Documents/"
